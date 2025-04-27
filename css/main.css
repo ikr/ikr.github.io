@@ -1,0 +1,49 @@
+html {
+    height: 100%;
+}
+
+body {
+    font-family: 'Droid Sans Mono', Courier, serif;
+    font-size: 14pt;
+    background-color: rgb(25, 26, 49);
+    min-height: 32em;
+    height: 100%;
+    color: white;
+}
+
+#leftMargin {
+    background-color: rgb(220, 220, 220);
+    float: left;
+    left: 0em;
+    top: 0em;
+    width: 1em;
+    min-height: 32em;
+    height: 100%;
+}
+
+#content {
+    padding-left: 1.25em;
+    height: 100%;
+    background-color: rgb(14, 16, 38);
+    width: 50em;
+}
+
+.code li {
+    white-space: pre;
+}
+
+.comment {
+    color: rgb(158, 158, 158);
+}
+
+.keyword {
+    color: rgb(221, 239, 74);
+}
+
+.entity {
+    color: rgb(255, 100, 0);
+}
+
+a {
+    color: rgb(97, 206, 60);
+}

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>The true meaning of DRY</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="application/atom+xml" rel="alternate" href="atom.xml" title="The true meaning of DRY">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/components/prism-clojure.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism.min.css">
+
+
+
+    <!-- Social sharing (Facebook, Twitter, LinkedIn, etc.) -->
+    <meta name="title" content="The true meaning of DRY">
+    <meta name="twitter:title" content="The true meaning of DRY">
+    <meta property="og:title" content="The true meaning of DRY">
+    <meta property="og:type" content="website">
+
+
+    <meta name="twitter:url" content="https://ikr.li/blog/2014-12-21-the-true-meaning-of-dry.html">
+    <meta property="og:url" content="https://ikr.li/blog/2014-12-21-the-true-meaning-of-dry.html">
+
+
+    <meta name="twitter:card" content="summary">
+
+
+
+  </head>
+  <body>
+
+    <div class="site-header">
+      <div class="wrapper">
+        <div class="site-nav">
+          <a class="page-link" href="archive.html">Archive</a>
+          <a class="page-link" href="tags/index.html">Tags</a>
+          <a class="page-link" href="https://github.com/ikr/ikr.li-blog/issues">Discuss</a>
+	  <a class="page-link" href="atom.xml">
+            Feed
+          </a>
+	  
+	  
+	  <a class="page-link" href="https://ikr.li/">About</a>
+	  
+        </div>
+        <div>
+          <h1 class="site-title">
+            <a class="page-link" href="index.html">ikr / blog</a>
+          </h1>
+	  <p>Me, exploring software engineering and the world in general.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrapper">
+
+      <h1>
+  
+  The true meaning of DRY
+  
+</h1>
+<p>I've been listening to <a href='http://articles.coreyhaines.com/'>Corey Haines</a> talking about <a href='https://leanpub.com/4rulesofsimpledesign'>his exploration</a> of <a href='https://kentbeck.com/'>Kent Beck's</a> 4 Rules of Simple Design, and he has brought up an exceptionally important point about the Don't Repeat Yourself <i>(DRY)</i> principle. DRY isn't about running an automatic repetition detection tool on your code base, and making sure it finds nothing. But rather it's about not repeating <i>the knowledge</i> in the code. There's <i>incidental,</i> and there's <i>essential</i> repetition. Chasing the incidental repetition is a road to hell: things that look the same today will most certainly change differently in the future.</p><p>Just as almost everything else in software, the <i>essential DRY</i> can be traced back to a paper from the 1970-s. This time, it's Parnas'es <a href='https://wstomv.win.tue.nl/edu/2ip30/references/criteria_for_modularization.pdf'>"On the criteria to be used in decomposing systems into modules"</a>. Encapsulating a design decision into a module, suggested by Parnas, is pretty much equivalent to not repeating knowledge in the code.</p>
+
+<p><i>Published: 2014-12-21</i></p>
+
+<p>
+  <i>
+  Tagged:
+  
+  <span class="tag">
+    <a href="tags/design.html">design</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/solid.html">solid</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/best-practice.html">best-practice</a>
+  </span>
+  
+  </i>
+</p>
+
+
+
+      
+      <div style="margin-bottom: 20px; float: right;">
+        <a class="page-link" href="archive.html">Archive</a>
+      </div>
+      
+    </div>
+  </body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>SaltStack states for Let&#39;s Encrypt certificates on Debian with Nginx</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="application/atom+xml" rel="alternate" href="atom.xml" title="SaltStack states for Let&#39;s Encrypt certificates on Debian with Nginx">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/components/prism-clojure.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism.min.css">
+
+
+
+    <!-- Social sharing (Facebook, Twitter, LinkedIn, etc.) -->
+    <meta name="title" content="SaltStack states for Let&#39;s Encrypt certificates on Debian with Nginx">
+    <meta name="twitter:title" content="SaltStack states for Let&#39;s Encrypt certificates on Debian with Nginx">
+    <meta property="og:title" content="SaltStack states for Let&#39;s Encrypt certificates on Debian with Nginx">
+    <meta property="og:type" content="website">
+
+
+    <meta name="twitter:url" content="https://ikr.li/blog/2018-07-18-saltstack-states-for-lets-encrypt.html">
+    <meta property="og:url" content="https://ikr.li/blog/2018-07-18-saltstack-states-for-lets-encrypt.html">
+
+
+    <meta name="twitter:card" content="summary">
+
+
+
+  </head>
+  <body>
+
+    <div class="site-header">
+      <div class="wrapper">
+        <div class="site-nav">
+          <a class="page-link" href="archive.html">Archive</a>
+          <a class="page-link" href="tags/index.html">Tags</a>
+          <a class="page-link" href="https://github.com/ikr/ikr.li-blog/issues">Discuss</a>
+	  <a class="page-link" href="atom.xml">
+            Feed
+          </a>
+	  
+	  
+	  <a class="page-link" href="https://ikr.li/">About</a>
+	  
+        </div>
+        <div>
+          <h1 class="site-title">
+            <a class="page-link" href="index.html">ikr / blog</a>
+          </h1>
+	  <p>Me, exploring software engineering and the world in general.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrapper">
+
+      <h1>
+  
+  SaltStack states for Let&#39;s Encrypt certificates on Debian with Nginx
+  
+</h1>
+<p>Recently I've configured <a href='https://letsencrypt.org/'>Let's Encrypt certificates</a> for a staging HTTPS server for one of our clients. That was amazingly easy to do. I remember checking the ACME protocol client tools in the very beginning of Let's Encrypt initiative. Back then the tools were, of course, very immature: hard to install and configure, and they only worked in interactive mode. It's all in the past now.</p><p>Basically, I took <a href='https://techtalk.blog/simple-and-free-ssl-certificates-using-letsencrypt-and-nginx-530f03aee07'>this great blog post</a> and codified it in <a href='https://docs.saltstack.com/en/latest/topics/tutorials/starting_states.html'>SaltStack states.</a> SaltStack is an automatic configuration management tool similar to <a href='https://puppet.com/solutions/configuration-management'>Puppet</a> and <a href='https://www.ansible.com/use-cases/configuration-management'>Ansible</a>. It's quite simple and declarative, yet it scales up to larger infrastructure. Our sysadmins love it.</p><p>Below is the annotated YAML of my solution.</p><pre class="language-yaml"><code class="lang-yaml language-yaml">backports:
+  pkgrepo.managed:
+    - name: deb http://ftp.de.debian.org/debian jessie-backports main contrib non-free
+    - file: /etc/apt/sources.list.d/backports.list
+
+dehydrated:
+  pkg.installed:
+    - fromrepo: jessie-backports
+    - require:
+      - pkgrepo: backports
+</code></pre><p>That adds the jessie-backports Debian package repository, and installs the <a href='https://dehydrated.io/'>Dehydrated</a> ACME client from it. Starting with Debian Stretch (v9) it's <a href='https://packages.debian.org/search?keywords=dehydrated&searchon=names&suite=all&section=all'>not necessary to add the backports repo.</a> Then, the section above can be reduced to just this:</p><pre class="language-yaml"><code class="lang-yaml language-yaml">dehydrated:
+  pkg.installed
+</code></pre><p>The <code>salt://web-server/conf/example.com</code> nginx configuration file:</p><pre class="language-nginx"><code class="lang-nginx language-nginx">server {
+    listen 80;
+    server&#95;name example.com;
+
+    include /etc/nginx/conf.d/&#42;.http.location.inc;
+
+    location / {
+        return 301 https://example.com$request&#95;uri;
+    }
+}
+
+server {
+    listen 443 default&#95;server ssl;
+    server&#95;name example.com;
+
+    ssl on;
+    include /etc/nginx/conf.d/ssl.inc;
+    include /etc/nginx/conf.d/&#42;.location.inc;
+
+    # ...
+}
+</code></pre><p>Which is then referenced from the <code>salt://web-server/init.sls</code>:</p><pre class="language-yaml"><code class="lang-yaml language-yaml">/etc/nginx/sites-enabled/example.com:
+  file.managed:
+    - source: salt://web-server/conf/example.com
+    - require:
+      - pkg: nginx
+    - watch&#95;in:
+      - service: nginx
+
+/etc/nginx/conf.d/acme-challenge.http.location.inc:
+  file.managed:
+    - source: salt://web-server/conf/acme-challenge.http.location.inc
+    - require:
+      - pkg: nginx
+      - pkg: dehydrated
+    - watch&#95;in:
+      - service: nginx
+</code></pre><p>The <code>salt://web-server/conf/acme-challenge.http.location.inc</code> file is nothing but:</p><pre class="language-nginx"><code class="lang-nginx language-nginx">location &#94;&#126; /.well-known/acme-challenge {
+    auth&#95;basic &quot;off&quot;;
+    alias /var/lib/dehydrated/acme-challenges;
+}
+</code></pre><p>Now the tricky bit. The <code>/etc/nginx/conf.d/ssl.inc</code> referenced in the <code>salt://web-server/conf/example.com</code> will in the end contain the path to the certificate file, and the path to the secret server key file. We don't have those initially, before the ACME challenge takes place. Thus, we need some “transitional” certificate and key to make nginx start and serve the ACME challenge Web location over HTTP.</p><pre class="language-yaml"><code class="lang-yaml language-yaml">ssl&#95;inc&#95;transitional:
+  cmd.run:
+    - name: &gt;
+        echo 'ssl&#95;certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;' &gt; /etc/nginx/conf.d/ssl.inc &amp;&amp;
+        echo 'ssl&#95;certificate&#95;key /etc/ssl/private/ssl-cert-snakeoil.key;' &gt;&gt; /etc/nginx/conf.d/ssl.inc
+    - unless: test -f /etc/nginx/conf.d/ssl.inc
+    - require:
+      - pkg: nginx
+    - require&#95;in:
+      - service: nginx
+
+/etc/dehydrated/domains.txt:
+  file.managed:
+    - contents:
+      - example.com
+    - require:
+      - pkg: dehydrated
+
+initial&#95;lets&#95;encrypt&#95;cert:
+  cmd.run:
+    - name: /usr/bin/dehydrated --cron
+    - unless: test -d /var/lib/dehydrated/certs/example.com
+    - require:
+      - file: /etc/nginx/conf.d/acme-challenge.http.location.inc
+      - file: /etc/dehydrated/domains.txt
+
+ssl&#95;inc:
+  cmd.run:
+    - name: &gt;
+        /bin/systemctl stop nginx &amp;&amp;
+        echo 'ssl&#95;certificate /var/lib/dehydrated/certs/example.com/fullchain.pem;' &gt; /etc/nginx/conf.d/ssl.inc &amp;&amp;
+        echo 'ssl&#95;certificate&#95;key /var/lib/dehydrated/certs/example.com/privkey.pem;' &gt;&gt; /etc/nginx/conf.d/ssl.inc &amp;&amp;
+        /bin/systemctl start nginx
+    - onlyif: test -f /etc/nginx/conf.d/ssl.inc &amp;&amp; cat /etc/nginx/conf.d/ssl.inc | grep -F ssl-cert-snakeoil
+    - require:
+      - cmd: initial&#95;lets&#95;encrypt&#95;cert
+</code></pre><p>The final part is the certificate renewal cron job:</p><pre class="language-yaml"><code class="lang-yaml language-yaml">root&#95;email&#95;for&#95;cron:
+  cron.env&#95;present:
+    - user: root
+    - name: MAILTO
+    - value: webmaster@example.com
+
+lets&#95;encrypt&#95;cert&#95;update:
+  cron.present:
+    - name: chronic /usr/bin/dehydrated --cron &amp;&amp; systemctl reload nginx
+    - identifier: lets&#95;encrypt&#95;cert&#95;update
+    - user: root
+    - dayweek: 0
+    - hour: 4
+    - minute: 2
+</code></pre><p>The <code>chronic</code> tool is a part of the <a href='https://joeyh.name/code/moreutils/'>moreutils Debian package.</a> It runs a command quietly unless it fails. Setting the <code>MAILTO</code> environment variable for cron makes sure all the failures are e-mailed to <a href='mailto:webmaster@example.com'>webmaster@example.com.</a> The cron job configured above will run every Sunday at 04:02.</p>
+
+<p><i>Published: 2018-07-18</i></p>
+
+<p>
+  <i>
+  Tagged:
+  
+  <span class="tag">
+    <a href="tags/debian.html">debian</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/saltstack.html">saltstack</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/linux.html">linux</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/tls.html">tls</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/ssl.html">ssl</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/nginx.html">nginx</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/letsencrypt.html">letsencrypt</a>
+  </span>
+  
+  </i>
+</p>
+
+
+
+      
+      <div style="margin-bottom: 20px; float: right;">
+        <a class="page-link" href="archive.html">Archive</a>
+      </div>
+      
+    </div>
+  </body>
+</html>

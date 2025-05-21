@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>The Agile (Shmagile) custom software development</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="application/atom+xml" rel="alternate" href="atom.xml" title="The Agile (Shmagile) custom software development">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/components/prism-clojure.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism.min.css">
+
+
+
+    <!-- Social sharing (Facebook, Twitter, LinkedIn, etc.) -->
+    <meta name="title" content="The Agile (Shmagile) custom software development">
+    <meta name="twitter:title" content="The Agile (Shmagile) custom software development">
+    <meta property="og:title" content="The Agile (Shmagile) custom software development">
+    <meta property="og:type" content="website">
+
+
+    <meta name="twitter:url" content="https://ikr.li/blog/2010-12-21-agile-shmagile.html">
+    <meta property="og:url" content="https://ikr.li/blog/2010-12-21-agile-shmagile.html">
+
+
+    <meta name="twitter:card" content="summary">
+
+
+
+  </head>
+  <body>
+
+    <div class="site-header">
+      <div class="wrapper">
+        <div class="site-nav">
+          <a class="page-link" href="archive.html">Archive</a>
+          <a class="page-link" href="tags/index.html">Tags</a>
+          <a class="page-link" href="https://github.com/ikr/ikr.li-blog/issues">Discuss</a>
+	  <a class="page-link" href="atom.xml">
+            Feed
+          </a>
+	  
+	  
+	  <a class="page-link" href="https://ikr.li/">About</a>
+	  
+        </div>
+        <div>
+          <h1 class="site-title">
+            <a class="page-link" href="index.html">ikr / blog</a>
+          </h1>
+	  <p>Me, exploring software engineering and the world in general.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrapper">
+
+      <h1>
+  
+  The Agile (Shmagile) custom software development
+  
+</h1>
+<p>At the point when Agile has hit the fan in Russia, I had already left two own-product-based software companies; and since then was only doing custom software development. Therefore I will not generalize, claiming that Agile movement is just a publicity stunt to sell seminars and Scrum Master certificates, even though Steve Yegge <a href='http://steve-yegge.blogspot.com/2006/09/good-agile-bad-agile_27.html'>says so</a>. May be indeed it works great <i>for products</i>. I don't know, and won't judge until I try. What I do know, is that some of the core Agile practices are useless, and can even become harmful, — for the projects where external customers ask to develop software for money.</p><p>What⁈ I must be <a href='http://www.youtube.com/watch?v=08xQLGWTSag'>doing it wrong</a>. How can cute unicorns and rainbows from the warm fuzzy Agile cloud do any harm? Alright, let's double-check together. Here's my interpretation of what that core practices are.</p><p>The development is done in short (1—2 week) cycles. After each one a new functional version is deployed on a productive server accessible by the customer. At the end of each iteration we announce the results, present the new version at a meeting, and solicit the feedback. We briefly define the features (user stories) we need to implement in the nearest future, and estimate how much work they are. We also collect and prioritize all the feedback we receive along the way. Having assembled all those elements into a regularly reviewed priority list, we'd just pick stuff from the top for the next iteration.</p><p>Sounds pretty Agile, huh? I intentionally omit the code-related practices here. We'll return to them later. For the moment, let's focus on <i>the process</i>.</p><p>So, that was <i>the theory</i> of operation. Now, are you ready to meet <i>the reality</i>?</p><p>Let me make up a sample customer project for you. I may exaggerate a little for a deeper artistic effect, but, if you've ever built software for a customer, you'd agree that's, in general, how stuff is actually done in our sector of economy.</p><p>The imaginary application you'll build is going to be a legacy system rewrite. Actually, it'll be the second attempt. Your predecessors failed miserably, but, because of some reasons, the customer still believes that <a href='http://www.joelonsoftware.com/articles/fog0000000069.html' title="Things You Should Never Do, Part I - Joel on Software">rewrite is a good idea</a>. So, you'll have the utterly worst possible specification: an existing system.</p><p>Probably, a conversation like this would take place at a kick-off meeting:</p><p>— The app <a href='http://raptureinvenice.com/?p=89' title="Rapture In Venice: Is Good Code Impossible? Part 2: Project Manipulation Patterns">is really simple</a>. Look! It even already exists!</p><p>— Hm, true, but…</p><p>— Oh, come on, <a href='http://www.youtube.com/watch?v=R2a8TRSgzZY' title="YouTube - The Vendor Client relationship - in real world situations">we can make it</a>! We've even made a huge paper folder (aka <i>the folder</i>) full of screen shots of the existing system, so all must be clear.</p><p>— Well, we believe it should be possible to have a basic implementation of this functionality in a year. But, for sure, no fancy stuff. Just a bare bones solution.</p><p>— Right, we can elaborate later. But you won't do a Web site with <a href='http://www.htmlhelp.com/reference/html40/frames/frame.html' title="HTML Frame">frames</a>, as it is now, will you?</p><p>— Of course not.</p><p>— Perfect! So we'll have <i>all</i> the same functionality, but implemented better. Expectations set.</p><p>— We'd like to develop iteratively: 2 week cycles. So that you clearly see the progress and have full control. And we, in turn, can immediately react to change. Let's do it the <i>Agile</i> way.</p><p>— What? Cycles? We didn't really plan that many meetings… But OK, we guess you know better how software is developed.</p><p>So you start burning your development cycles. You keep deploying a new version every iteration, making steady progress. Then, in a few months the customer asks:</p><p>— So, how are we doing? Is the project on track?</p><p>— Let us check… If we enumerate all the open functional points and the completed ones, and make a proportion… Yes, it's still possible to release on time, but things are getting very tight because of those two search module rewrites, and the complete front-end redesign we did according to your feedback. We should be very careful planning the iterations, so that high priority issues make it to the release, while not so important stuff we leave out of the first version.</p><p>— Huh? What do you mean — leave out? Haven't you seen <i>the folder⁈</i> You promised us we'll have it all in a year!</p><p>— But we thought we're doing it the Agile way…</p><p>— Look! We have an approved budget for this year, and when the year is over the application must be 100% done. Otherwise the project is a failure. Ah, by the way, we're already starting to plan the next year's budget, and need you telling us what it takes to add a CRM, XML API-s, reports, bar charts, PDF export, billing module, and SAP integration; we also need a mobile version of the app, and two more system installations, which will be <i>exactly</i> the same; well, may be a little different… So, we need an estimation from you, and a plan. Yes, for the whole year.</p><p>— Do you have the specification for all that?</p><p>— No, sorry. But we're sure you'll offer us a sensible solution. Our budget meeting is in 3 weeks.</p><p>How much Agile would you feel in this situation? But wait, it can be worse. You naively believe that the customer is <i>using</i> the system you deploy at the end of each iteration. But — surprise — they totally don't! The only time they pay any attention to the application is during your meetings. And they are thoughtfully nodding then, asking questions — ultimately to conclude that the system is not finished yet, and all those missing things they're asking about are coming in the following iterations. Now imagine, <a href='https://www.youtube.com/watch?v=zsTRxXvQY0s'>what happens</a>, when they — the very first time — <i>really</i> start using the system, only a year after the project started.</p><p>So, what do you think? Is the customer <i>wrong</i> when acting like that? I don't think so. Well, at least their position makes sense. They didn't come to you for Scrum master certification. They are shopping. Shopping for software.</p><p>Now, imagine you're buying a car… Yeah-yeah, I'm going to throw a car metaphor at you. I discourage it myself normally: it doesn't work for software. But that's how customers think. So, buying a car, you're asking a dealer how much a family car would cost, with "standard" features. And instead of telling you, he says:</p><p>— I have a better idea: let's <i>build</i> a car together. We'll do it iteratively. So, say, in 2 weeks you come and test how the 4 wheels roll in standalone mode.</p><p>What would you do then? I bet you'll go to a dealer who'll just show you a freaking price tag. You can always find more than enough of them. And! We've been feeding this beast ourselves — by accepting the long-term fixed price projects.</p><p>Isn't that a little depressing? OK, enough. Let's finish on a positive note. There are parts of Agile that work great in customer projects. Test-driven development, collective code ownership, continuous integration, (occasional) pair programming… Well, basically everything that doesn't involve a manager. Those are the essential professional programmer disciplines today. And you're very… brave if you aren't following them; especially in year-long fixed price projects, which aren't going anyway any time soon.</p>
+
+<p><i>Published: 2010-12-21</i></p>
+
+<p>
+  <i>
+  Tagged:
+  
+  <span class="tag">
+    <a href="tags/agile.html">agile</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/story.html">story</a>
+  </span>
+  
+  </i>
+</p>
+
+
+
+      
+      <div style="margin-bottom: 20px; float: right;">
+        <a class="page-link" href="archive.html">Archive</a>
+      </div>
+      
+    </div>
+  </body>
+</html>

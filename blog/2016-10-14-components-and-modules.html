@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>On components and modules</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="application/atom+xml" rel="alternate" href="atom.xml" title="On components and modules">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/components/prism-clojure.min.js"></script>
+    <script type="text/javascript" src="https://livejs.com/live.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism.min.css">
+
+
+
+    <!-- Social sharing (Facebook, Twitter, LinkedIn, etc.) -->
+    <meta name="title" content="On components and modules">
+    <meta name="twitter:title" content="On components and modules">
+    <meta property="og:title" content="On components and modules">
+    <meta property="og:type" content="website">
+
+
+    <meta name="twitter:url" content="https://ikr.li/blog/2016-10-14-components-and-modules.html">
+    <meta property="og:url" content="https://ikr.li/blog/2016-10-14-components-and-modules.html">
+
+
+    <meta name="twitter:card" content="summary">
+
+
+
+  </head>
+  <body>
+
+    <div class="site-header">
+      <div class="wrapper">
+        <div class="site-nav">
+          <a class="page-link" href="archive.html">Archive</a>
+          <a class="page-link" href="tags/index.html">Tags</a>
+          <a class="page-link" href="https://github.com/ikr/ikr.li-blog/issues">Discuss</a>
+	  <a class="page-link" href="atom.xml">
+            Feed
+          </a>
+	  
+	  
+	  <a class="page-link" href="https://ikr.li/">About</a>
+	  
+        </div>
+        <div>
+          <h1 class="site-title">
+            <a class="page-link" href="index.html">ikr / blog</a>
+          </h1>
+	  <p>Me, exploring software engineering and the world in general.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrapper">
+
+      <h1>
+  
+  On components and modules
+  
+</h1>
+<p>At the place where I <a href='http://www.xiag.ch/'>work currently</a>, we tend to prefer multiple independently deployable small software <i>components</i> to huge single-piece monoliths. Component is an overloaded term that can easily be misinterpreted. By <i>component</i> I personally mean something very specific. To avoid the ambiguity, let me first enumerate what it's not. A component is not a programming language namespace or class, it's not a file, and not an in-process linked library like a jar, a dll, a Composer- or an NPM package. Component is a unit of deployment, and is also an <i>actor.</i> "Actor" means it's, well, active &ndash; running in its own process, initiating events, or reacting to events.</p><p>As many others these days, we found following the <a href='http://martinfowler.com/articles/microservices.html'>Microservices</a> architectural style quite beneficial. Normally, we connect components to each other via HTTP, or via message-oriented middleware, passing data around in JSON format. Thus, a component either serves HTTP requests, or reads from- or writes to a message queue. That flavor of Microservices style has a number of benefits:</p><ul><li>HTTP &ndash; all the goodies of the Web (caching, proxy-ing, gzip-ing, basic auth, accessibility and  readability &ndash; just <code>curl</code> it or access from the browser directly)</li><li>Easy composition: piping stuff into stuff, <code>curl</code>, <code>json</code>, and <code>ramda-cli</code> can get you very far;  often you can implement a whole new feature in a few lines of Bash</li><li>Super-low coupling</li><li>Parts are easy to understand</li><li>If a component has rotten beyond recovery, just rewrite it; no big deal</li><li>Freedom in choosing the programming language for each component independently</li><li>Coherent and fast test suites</li><li>Scalability</li><li>Statelessness</li><li>Value-based, data-oriented interfaces</li></ul><p>It's not all bright and happy, of course. Microservices come with a price, and also caused us a certain bit of pain. That's not the point of this post though. Instead, I want to claim that good modularization is essential to software project success whether you opt for microservices or not. What is a <i>module?</i> I'd say it's any unit of abstraction: very broad, very general thing. It's pretty much any building block for constructing software.</p><p>Not every <i>module</i> has to be a microservice &ndash; thus, a separate <i>component.</i> Very often an in-process <a href='https://packagist.org/'>Composer package</a> or <a href='https://www.npmjs.com/'>npm module</a> is a perfectly appropriate building block.</p><p>It's quite a widespread fallacy to conflate the deployment architecture view, and the logical architecture view. One may hear "We're not Facebook to care about microservices, therefore it's OK to toss all the code into a single amorphous ball of mud &ndash; aka The Monolith". That's a false dichotomy, of course. There's nothing inherently wrong with a monolithic application in the deployment view: a single process of execution, one application server listening on a network port. Facebook itself is a single multi-gigabyte-large executable file. Yet, there's pretty much everything wrong about a monolith in the logical view: no clear-cut borders between modules, everything depends on everything else.</p><p>Coming down to the basics, why exactly should we (1) split a software system into modules, and, <i>also,</i> (2) strive to keep those modules in separate repositories in a version control system? The (2) is my personal opinion I'd like to substantiate.</p><p>Let's start by answering the first question. As a matter of fact, a Turing machine couldn't care less whether we glue the tape together from separate strips or not. The tape cut is required by our limited minds to disassemble a hard problem's solution into digestible pieces. Abstraction and composition are the only two weapons we have to combat the complexity. Software development lives and dies by the composable abstractions <i>of just the right size.</i></p><p>Now, let's go on to the second question. Is it possible to have composable abstractions of just the right size within a single Git repository containing all the application's code? Yes, of course! Then, though, the "just the right size" part comes into consideration. Abstractions within the application <a href='https://en.wikipedia.org/wiki/Separation_of_concerns'>work best</a> when each has the <a href='https://en.wikipedia.org/wiki/Single_responsibility_principle'>only reason to change</a> &ndash; it's own technical or business <i>concern.</i> To which programming language construct &ndash; say, in PHP &ndash; such a concern <a href='https://en.wikipedia.org/wiki/Bijection'>bijectively</a> corresponds? A function? No. A class or a trait? Definitely not. A namespace? That probably is the closest approximation, which may actually work given a cast-iron discipline of the project participants. However, namespaces don't accommodate well artifacts like database schemas and stored procedures, or cronjobs.</p><p>Conclusion: concern boundaries in a single-repository monolithic code base are seriously blurred. What can prevent crossing those boundaries and slowly but surely crawling to the <a href='http://www.laputan.org/mud/'>Big Ball of Mud</a> architecture, where everything depends on everything else? Only the clear understanding and active enforcement of consistent program design, and the aforementioned discipline. How realistic is to expect that in an ordinary project, where not all the developers are seniors with over 15 years of industry experience?</p><p>Thereby, principally, modules isolated into their own source code repositories are the concerns' border guards. That purpose of modularization will stay relevant forever, even when computers become a million times faster.</p><p>So, what do we want? Composable modules with clear-cut borders! Do we want them actually to work? You bet!</p><p>The easiest way I know to ensure that the code works correctly is the test-driven development (TDD). Is it possible to practice TDD when a unit test suite's run time is, say, over 10 seconds? Definitely not! That imposes an objective hardware-bound restriction on how big of a module one can build. Indeed, computers get faster or more parallel all the time. On the other hand, programming languages and platforms get more sophisticated, and tend to do more and more things. May well be that those two opposing trends will compensate each other eternally.</p><p>So, the next time you'll be adding a file to your code base, may be consider sprouting a new module with its own repository instead?</p>
+
+<p><i>Published: 2016-10-14</i></p>
+
+<p>
+  <i>
+  Tagged:
+  
+  <span class="tag">
+    <a href="tags/architecture.html">architecture</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/component.html">component</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/software.html">software</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/module.html">module</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/composition.html">composition</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/abstraction.html">abstraction</a>
+  </span>
+  
+  </i>
+</p>
+
+
+
+      
+      <div style="margin-bottom: 20px; float: right;">
+        <a class="page-link" href="archive.html">Archive</a>
+      </div>
+      
+    </div>
+  </body>
+</html>

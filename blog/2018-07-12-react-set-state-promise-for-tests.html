@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Providing a setState completion Promise for tests</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="application/atom+xml" rel="alternate" href="atom.xml" title="Providing a setState completion Promise for tests">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/components/prism-clojure.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism.min.css">
+
+
+
+    <!-- Social sharing (Facebook, Twitter, LinkedIn, etc.) -->
+    <meta name="title" content="Providing a setState completion Promise for tests">
+    <meta name="twitter:title" content="Providing a setState completion Promise for tests">
+    <meta property="og:title" content="Providing a setState completion Promise for tests">
+    <meta property="og:type" content="website">
+
+
+    <meta name="twitter:url" content="https://ikr.li/blog/2018-07-12-react-set-state-promise-for-tests.html">
+    <meta property="og:url" content="https://ikr.li/blog/2018-07-12-react-set-state-promise-for-tests.html">
+
+
+    <meta name="twitter:card" content="summary">
+
+
+
+  </head>
+  <body>
+
+    <div class="site-header">
+      <div class="wrapper">
+        <div class="site-nav">
+          <a class="page-link" href="archive.html">Archive</a>
+          <a class="page-link" href="tags/index.html">Tags</a>
+          <a class="page-link" href="https://github.com/ikr/ikr.li-blog/issues">Discuss</a>
+	  <a class="page-link" href="atom.xml">
+            Feed
+          </a>
+	  
+	  
+	  <a class="page-link" href="https://ikr.li/">About</a>
+	  
+        </div>
+        <div>
+          <h1 class="site-title">
+            <a class="page-link" href="index.html">ikr / blog</a>
+          </h1>
+	  <p>Me, exploring software engineering and the world in general.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrapper">
+
+      <h1>
+  
+  Providing a setState completion Promise for tests
+  
+</h1>
+<p>After upgrading our live system from Node 6 to Node 8 I got super excited about acquiring the async/await capability, and was in that raving “async/await all the things!” mode. It was very satisfying to see the callbacks-heavy production and test code to practically halve in size. Not only was it less code now, but also the code structure got completely flat and trivial to follow.</p><p><a href='https://github.com/facebook/react/issues/2642'>Some things are harder to async/await</a> than others. Today I faced the following problem.</p><p>I have a tiny React component which is <a href='http://ikr.su/h/react-star-rating-input/demo.html'>a star rating
+input.</a> It highlights the prospective star rating value on mouse hover, and sets the new value on mouse click. The prospective value is stored in the component's <code>state</code>, which is updated on <code>mouseEnter</code>/<code>mouseLeave</code> DOM event. Then the <code>state.prospectiveValue</code> is used to highlight the potential rating selection.</p><p>I don't always write React components, but when I do, I test-drive them. Let me replay here my <code>state.prospectiveValue</code> support implementation, driven by tests, <a href='https://mochajs.org/'>in
+Mocha</a>. First, we mount the component with <a href='http://airbnb.io/enzyme/'>enzyme,</a> and fabricate some initial <code>prospectiveValue</code>:</p><pre class="language-javascript"><code class="lang-javascript language-javascript">let wrapper
+
+beforeEach&#40;done =&gt; {
+    wrapper = mount&#40;&lt;StarRatingInput value={1} /&gt;&#41;
+    wrapper.setState&#40;{ prospectiveValue: 2 }, done&#41;
+}&#41;
+</code></pre><p>Mind the <code>done</code> callback passed to <code>setState</code>, to make sure that Mocha <a href='https://reactjs.org/docs/react-component.html#setstate'>waits for the state change
+to succeed</a> before proceeding with each of the test cases. Here's the first one of them:</p><pre class="language-javascript"><code class="lang-javascript language-javascript">it&#40;'sets new prospective value on mouse hover for a star', &#40;&#41; =&gt; {
+    // Star at 0-based index 3 corresponds to a rating value of 4
+    wrapper.find&#40;'a.star-rating-star'&#41;.at&#40;3&#41;.simulate&#40;'mouseEnter'&#41;
+    assert.strictEqual&#40;wrapper.state&#40;&#41;.prospectiveValue, 4&#41;
+}&#41;
+</code></pre><p>The test is red: <code>2 != 4</code>. Let's make it green, changing the React component code.</p><pre class="language-javascript"><code class="lang-javascript language-javascript">handleStarMouseEnter&#40;value&#41; {
+    this.setState&#40;{ prospectiveValue: value }&#41;
+}
+</code></pre><p>Obviously.</p><p>Well, the test is still red. <code>setState</code> is asynchronous, and we have to pass it a callback, like we did in <code>beforeEach&#40;&#41;</code>, in order to wait for its conclusion. How can we possibly do that now? My first thought was introducing a func prop <code>onSetStateDone</code>, and passing it to all the <code>setState&#40;&#41;</code> calls within the React component. Another option, which I learned about later, is <a href='https://github.com/facebook/react/issues/2642#issuecomment-66676469'>overriding the
+componentDidUpdate.</a> Both ways would require pyramids of callbacks to implement. Meh. Could that instead be a nail for my new shiny async/await hammer? You bet!</p><pre class="language-javascript"><code class="lang-javascript language-javascript">private &#95;promiseSetStateDone: Promise&lt;void&gt;
+
+get promiseSetStateDone&#40;&#41; {
+    return this.&#95;promiseSetStateDone
+}
+
+constructor&#40;props: Props&#41; {
+    super&#40;props&#41;
+    this.&#95;promiseSetStateDone = Promise.resolve&#40;&#41;
+    this.state = { prospectiveValue: 0 }
+}
+
+</code></pre><p>Then, instead of</p><pre class="language-javascript"><code class="lang-javascript language-javascript">this.setState&#40;{ prospectiveValue: value }&#41;
+</code></pre><p>we'll do</p><pre class="language-javascript"><code class="lang-javascript language-javascript">this.&#95;promiseSetStateDone = new Promise&#40;resolve =&gt; {
+    this.setState&#40;{ prospectiveValue: value }, resolve&#41;
+}&#41;
+</code></pre><p>Resulting in the test code like this:</p><pre class="language-javascript"><code class="lang-javascript language-javascript">it&#40;'sets new prospective value on mouse hover for a star', async &#40;&#41; =&gt; {
+    // Star at 0-based index 3 corresponds to a rating value of 4
+    wrapper.find&#40;'a.star-rating-star'&#41;.at&#40;3&#41;.simulate&#40;'mouseEnter'&#41;
+    await wrapper.instance&#40;&#41;.promiseSetStateDone
+
+    assert.strictEqual&#40;wrapper.state&#40;&#41;.prospectiveValue, 4&#41;
+}&#41;
+</code></pre><p>…And the test is now green. We can proceed test-driving.</p>
+
+<p><i>Published: 2018-07-12</i></p>
+
+<p>
+  <i>
+  Tagged:
+  
+  <span class="tag">
+    <a href="tags/promise.html">promise</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/mocha.html">mocha</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/testing.html">testing</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/enzyme.html">enzyme</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/reactjs.html">reactjs</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/async.html">async</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/tdd.html">tdd</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/javascript.html">javascript</a>
+  </span>
+  
+  </i>
+</p>
+
+
+
+      
+      <div style="margin-bottom: 20px; float: right;">
+        <a class="page-link" href="archive.html">Archive</a>
+      </div>
+      
+    </div>
+  </body>
+</html>

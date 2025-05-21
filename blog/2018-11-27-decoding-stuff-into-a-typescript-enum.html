@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Decoding stuff into a TypeScript enum</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="application/atom+xml" rel="alternate" href="atom.xml" title="Decoding stuff into a TypeScript enum">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/components/prism-clojure.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism.min.css">
+
+
+
+    <!-- Social sharing (Facebook, Twitter, LinkedIn, etc.) -->
+    <meta name="title" content="Decoding stuff into a TypeScript enum">
+    <meta name="twitter:title" content="Decoding stuff into a TypeScript enum">
+    <meta property="og:title" content="Decoding stuff into a TypeScript enum">
+    <meta property="og:type" content="website">
+
+
+    <meta name="twitter:url" content="https://ikr.li/blog/2018-11-27-decoding-stuff-into-a-typescript-enum.html">
+    <meta property="og:url" content="https://ikr.li/blog/2018-11-27-decoding-stuff-into-a-typescript-enum.html">
+
+
+    <meta name="twitter:card" content="summary">
+
+
+
+  </head>
+  <body>
+
+    <div class="site-header">
+      <div class="wrapper">
+        <div class="site-nav">
+          <a class="page-link" href="archive.html">Archive</a>
+          <a class="page-link" href="tags/index.html">Tags</a>
+          <a class="page-link" href="https://github.com/ikr/ikr.li-blog/issues">Discuss</a>
+	  <a class="page-link" href="atom.xml">
+            Feed
+          </a>
+	  
+	  
+	  <a class="page-link" href="https://ikr.li/">About</a>
+	  
+        </div>
+        <div>
+          <h1 class="site-title">
+            <a class="page-link" href="index.html">ikr / blog</a>
+          </h1>
+	  <p>Me, exploring software engineering and the world in general.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrapper">
+
+      <h1>
+  
+  Decoding stuff into a TypeScript enum
+  
+</h1>
+<p>Staying in a relatively safe realm of TypeScript code, with strict null checks, is all fine and dandy. Sometimes though one has to deal with the cruel outside world: JSON from the server or from the localStorage, user input, URL route parameters, and so on. Then we have to shoehorn the uncontrolled chaos from the outside into our nice algebraic type system which strives for making the impossible states unrepresentable. Here's a simple example: an enumeration of Languages.</p><pre class="language-javascript"><code class="lang-javascript language-javascript">enum Language { DE, FR, IT, EN }
+</code></pre><p>That's a handy thing to define, because, if you write a function returning some localized text, and happen to forget about English…</p><pre class="language-javascript"><code class="lang-javascript language-javascript">function thanks&#40;language: Language&#41;: string {
+  switch &#40;language&#41; {
+    case Language.DE:
+      return &quot;Danke&quot;;
+
+    case Language.FR:
+      return &quot;Merci&quot;;
+
+    case Language.IT:
+      return &quot;Grazie&quot;;
+  }
+}
+</code></pre><p>The TypeScript transpiler will complain:</p><pre><code>a.ts:8:40 - error TS2366: Function lacks ending return statement
+and return type does not include 'undefined'.
+8 function thanks&#40;language: Language&#41;: string {
+                                       &#126;&#126;&#126;&#126;&#126;&#126;</code></pre><p>That makes sure our pattern matching is exhaustive. Fewer bugs!</p><p>We'd certainly want to map the stringly-typed <code>'de'</code>, <code>'fr'</code>, <code>'it'</code>, and whatever else (<code>null</code>, <code>undefined</code>, <code>NaN</code>, <code>&#91;object Object&#93;</code>) obtained from the outside, into a member of the <code>Language</code> union, right at our module's boundary, before doing anything with the value. We'd need an utility like this:</p><pre class="language-javascript"><code class="lang-javascript language-javascript">function toLanguage&#40;x: any&#41;: Language {
+  switch &#40;String&#40;x&#41;&#41; {
+    case &quot;fr&quot;:
+      return Language.FR;
+
+    case &quot;it&quot;:
+      return Language.IT;
+
+    case &quot;en&quot;:
+      return Language.EN;
+
+    default:
+      return Language.DE;
+  }
+}
+</code></pre><p>Thus, we fall back to German on any kind of nonsense received.</p><p>Quite a bit of repetition here, no? It'll only get worse as the enum grows. We can do better, of course. Here's a little trick to avoid the repetition, stay type-safe, and never revise the <code>toLanguage</code> function later on, should the enum change.</p><pre class="language-javascript"><code class="lang-javascript language-javascript">function toLanguage&#40;x: any&#41;: Language {
+  const key = String&#40;x&#41;.toUpperCase&#40;&#41;;
+  const mayBeLanguage: Language | undefined = &#40;Language as any&#41;&#91;key&#93;;
+  return mayBeLanguage !== undefined ? mayBeLanguage : Language.DE;
+}
+</code></pre><p>Smart cast to the rescue! Code on.</p>
+
+<p><i>Published: 2018-11-27</i></p>
+
+<p>
+  <i>
+  Tagged:
+  
+  <span class="tag">
+    <a href="tags/decode.html">decode</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/union.html">union</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/typescript.html">typescript</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/adt.html">adt</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/javascript.html">javascript</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/typesafe.html">typesafe</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/enum.html">enum</a>
+  </span>
+  
+  </i>
+</p>
+
+
+
+      
+      <div style="margin-bottom: 20px; float: right;">
+        <a class="page-link" href="archive.html">Archive</a>
+      </div>
+      
+    </div>
+  </body>
+</html>

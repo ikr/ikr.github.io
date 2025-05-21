@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Quantum leap No. 2, or why Test-driven Development will solve world hunger</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="application/atom+xml" rel="alternate" href="atom.xml" title="Quantum leap No. 2, or why Test-driven Development will solve world hunger">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/components/prism-clojure.min.js"></script>
+    <script type="text/javascript" src="https://livejs.com/live.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism.min.css">
+
+
+
+    <!-- Social sharing (Facebook, Twitter, LinkedIn, etc.) -->
+    <meta name="title" content="Quantum leap No. 2, or why Test-driven Development will solve world hunger">
+    <meta name="twitter:title" content="Quantum leap No. 2, or why Test-driven Development will solve world hunger">
+    <meta property="og:title" content="Quantum leap No. 2, or why Test-driven Development will solve world hunger">
+    <meta property="og:type" content="website">
+
+
+    <meta name="twitter:url" content="https://ikr.li/blog/2010-08-04-quantum-leap-2-tdd.html">
+    <meta property="og:url" content="https://ikr.li/blog/2010-08-04-quantum-leap-2-tdd.html">
+
+
+    <meta name="twitter:card" content="summary">
+
+
+
+  </head>
+  <body>
+
+    <div class="site-header">
+      <div class="wrapper">
+        <div class="site-nav">
+          <a class="page-link" href="archive.html">Archive</a>
+          <a class="page-link" href="tags/index.html">Tags</a>
+          <a class="page-link" href="https://github.com/ikr/ikr.li-blog/issues">Discuss</a>
+	  <a class="page-link" href="atom.xml">
+            Feed
+          </a>
+	  
+	  
+	  <a class="page-link" href="https://ikr.li/">About</a>
+	  
+        </div>
+        <div>
+          <h1 class="site-title">
+            <a class="page-link" href="index.html">ikr / blog</a>
+          </h1>
+	  <p>Me, exploring software engineering and the world in general.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrapper">
+
+      <h1>
+  
+  Quantum leap No. 2, or why Test-driven Development will solve world hunger
+  
+</h1>
+<p>Before I was 11 I didn't even care if computers exist. Then, one day I randomly stumbled upon a book about BASIC, the programming language.  <i>And then it began…</i> I was totally blown away by the idea that I could create my own worlds in code. I was eager to build smart, beautiful things, which are able to make their own decisions, and be… alive, sort of.</p><p>For several years it was a constant creativity bliss: all those small programs and games I made and never really finished — because new shiny ideas appeared faster than I could code.</p><p>And then I've hit the first brick wall. When a body of code grew big enough it started to become unmanageable. I've been spending long hours debugging and guessing what could had been wrong, and drove myself many times into complete despair. I was close to convincing myself that <i>I simply can't program</i>.</p><p>And exactly when I was in my professional dire straits, I discovered <a href='http://www.amazon.com/Object-Oriented-Analysis-Design-Applications-3rd/dp/020189551X'>another book</a>. And, a few months later, <a href='http://www.amazon.com/Design-Patterns-Elements-Reusable-Object-Oriented/dp/0201633612'>yet another one</a>.</p><p>That was my quantum leap No.1. The object-oriented programming. I've learned to build <i>really</i> sophisticated shit. I mean <strong>really</strong>.  Usually, for a feature I did a few days of detailed up-front OOD; played all those object interaction scenarios in my mind; and then writing the code was pure formality. I made it compile, and then… it just worked! With unlimited undo/redo support, my own object-relational mapping, C++ private class inheritance, Visitors, Builders, Chains of Responsibilities, and many other “cool” things that made me feel smarter than I am.</p><p>That worked for quite a while. I mean it could last considerably longer before I found myself in the same tar pit of debugging & guessing. However, something else emerged: people who were inheriting my code complained it's too complex, and, well… too object-oriented.  And I thought “C'mon! Give me a break! Too OO? What does that even mean⁈”, and sometimes even ”OMG, our industry is full of incompetent amateurs!”</p><p>But then I gave it a second thought. Indeed, my heavily pattern-ized and tangled code with tons of polymorphic calls is hard to follow.  Then, still, it may take longer, but in the long run, I end up with a messy code base anyway.</p><p>“I was looking for an answer. It's the question that drives us, Neo.  It's the question that brought you here. You know the question, just as I did…”</p><p>— <i>Must it really be that freaking complex?</i></p><p>…And the answer found me.</p><p>— <i>No dude, it must not. Here's the trick: to keep it simple, you're not allowed to write more production code than it's necessary to satisfy a minimal failing test. Sounds crazy, but just let it go. Free your mind.</i></p><p>Oh, I did write unit tests before. Well, I <i>thought</i> they are <i>unit</i>-tests. But I had no idea that writing a test <i>first</i> makes such a humongous difference. Here's why.</p><ul><li>Even the worst programmer in the world, like me, can actually program. Test/code loop is verytight, and if you make a mistake, you catch it immediately. You can almost forget aboutdebugging. Anything that's broken was written not more than a couple of minutes ago.</li><li>You are no longer afraid of change. If the tests run, you're fine.  And if they don't, you know<i>exactly</i> where the conflict is. You “don't think you are, you <i>know</i> you are”.</li><li>TDD makes the OOP really kick in. You feel the pain from violating the Law of Demeter, or from apublic static function <i>immediately</i>, and not half a year later, trying to make a change underpressure of a big bang deadline. You know all your dependencies; the code becomes modular andflexible.</li><li>You get the best possible and 100% up-to-date documentation of your production code — the tests.</li><li>Tests-first make over-engineering much harder. They keep you goal-oriented and focused on what'struly important.</li></ul><p>So, that's how I've made my latest level-up. I swear by TDD; and I full-heartedly agree with Uncle Bob Martin: today, as a professional, you have no excuse not to follow this practice.</p>
+
+<p><i>Published: 2010-08-04</i></p>
+
+<p>
+  <i>
+  Tagged:
+  
+  <span class="tag">
+    <a href="tags/story.html">story</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/biography.html">biography</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/tdd.html">tdd</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/oop.html">oop</a>
+  </span>
+  
+  </i>
+</p>
+
+
+
+      
+      <div style="margin-bottom: 20px; float: right;">
+        <a class="page-link" href="archive.html">Archive</a>
+      </div>
+      
+    </div>
+  </body>
+</html>

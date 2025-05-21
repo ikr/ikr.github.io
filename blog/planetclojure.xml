@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>ikr / blog</title>
+  <link href="https://ikr.li/blog/atom.xml" rel="self"/>
+  <link href="https://ikr.li/blog"/>
+  <updated>2025-05-17T11:49:00+00:00</updated>
+  <id>https://ikr.li/blog</id>
+  <author>
+    <name>Ivan Krechetov</name>
+  </author>
+  <entry>
+    <id>https://ikr.li/blog/2011-09-26-just-need-it-mutable-sometimes.html</id>
+    <link href="https://ikr.li/blog/2011-09-26-just-need-it-mutable-sometimes.html"/>
+    <title>Well, I guess sometimes you just need stuff being mutable</title>
+    <updated>2011-09-26T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>I’ve been generating some prime numbers in Clojure lately, and I was struggling to get decent performance when working with “idiomatic” immutable sequences. I’ve started with a naive implementation of a lazy prime sequence:</p><pre class="language-clojure"><code class="lang-clojure language-clojure">&#40;defn denormalized-prime-indicator &#91;n smaller-primes&#93;
+    &#40;reduce
+        &#42;
+        &#40;map
+            #&#40;rem n %&#41;
+            &#40;filter #&#40;&lt;= &#40;&#42; % %&#41; n&#41; smaller-primes&#41;&#41;&#41;&#41;
+
+&#40;defn prime-rel? &#91;n smaller-primes&#93;
+    &#40;if &#40;&gt; &#40;denormalized-prime-indicator n smaller-primes&#41; 0&#41; true false&#41;&#41;
+
+&#40;defn next-prime &#91;cnt smaller-primes&#93;
+    &#40;if &#40;prime-rel? cnt smaller-primes&#41;
+        cnt
+        &#40;recur &#40;inc cnt&#41; smaller-primes&#41;&#41;&#41;
+
+&#40;def prime-seq
+    &#40;map last
+        &#40;iterate
+            &#40;fn &#91;p-seq&#93;
+                &#40;conj p-seq &#40;next-prime &#40;inc &#40;last p-seq&#41;&#41; p-seq&#41;&#41;&#41;
+            &#91;2&#93;&#41;&#41;&#41;
+</code></pre><p>It took over a minute to compute all the primes under 200'000, and over 2 hours to crunch till 2'000'000. Then, I went for <a href='http://en.wikipedia.org/wiki/Sieve_of_Eratosthenes'>Sieve of Eratosthenes</a>:</p><pre class="language-clojure"><code class="lang-clojure language-clojure">&#40;defn primes-below &#91;n&#93;
+    &#40;loop &#91;primes &#91;&#93; source &#40;range 2 n&#41;&#93;
+        &#40;if &#40;empty? source&#41;
+            primes
+            &#40;recur
+                &#40;conj primes &#40;first source&#41;&#41;
+                &#40;doall &#40;filter #&#40;not &#40;= &#40;rem % &#40;first source&#41;&#41; 0&#41;&#41; source&#41;&#41;&#41;&#41;&#41;&#41;
+</code></pre><p>Here, n = 200'000 took 24 seconds, and n = 2'000'000 — 44 minutes. Kind of an improvement, right? By the way, mind the “doall” at the last line. If you remove it, the poor thing dies from heap overeating, when lazy “filters” stack on top of each other long enough.</p><p>Still, 44 minutes for a 2'000'000-limit? That sounds just too slow. Therefore, I wrote a quick and dirty sieve function in PHP, and verified I’m getting the same results by checking the numbers' sum:</p><pre class="language-php"><code class="lang-php language-php">&lt;?php
+
+$sieve = array&#95;fill&#40;0, 2000000, true&#41;;
+
+$sum = 0;
+$p = 2;
+
+while &#40;$p &lt; count&#40;$sieve&#41;&#41; {
+    $sum += $p;
+
+
+    for &#40;$i = 2 &#42; $p; $i &lt; count&#40;$sieve&#41;; $i += $p&#41; {
+        $sieve&#91;$i&#93; = false;
+    }
+
+    $p++;
+
+    while &#40;&#40;$p &lt; count&#40;$sieve&#41;&#41; &amp;&amp; !$sieve&#91;$p&#93;&#41; {
+        $p++;
+    }
+}
+
+echo &quot;$sum\n&quot;;
+</code></pre><p>Time to find all the primes under 2'000'000? Two freaking seconds. If you bother writing this in C, you may shrink it down to under 100 ms, I’m sure.</p><p>Wait, but what if I do need generating primes fast in Clojure? And the answer found me</p><pre class="language-clojure"><code class="lang-clojure language-clojure">&#40;defn sieve &#91;n&#93;
+  &#40;let &#91;n &#40;int n&#41;&#93;
+    &quot;Returns a list of all primes from 2 to n&quot;
+    &#40;let &#91;root &#40;int &#40;Math/round &#40;Math/floor &#40;Math/sqrt n&#41;&#41;&#41;&#41;&#93;
+      &#40;loop &#91;i &#40;int 3&#41;
+             a &#40;int-array n&#41;
+             result &#40;list 2&#41;&#93;
+        &#40;if &#40;&gt;= i n&#41;
+          &#40;reverse result&#41;
+          &#40;recur &#40;+ i &#40;int 2&#41;&#41;
+                 &#40;if &#40;&lt; i root&#41;
+                   &#40;loop &#91;arr a
+                          inc &#40;+ i i&#41;
+                          j &#40;&#42; i i&#41;&#93;
+                     &#40;if &#40;&gt;= j n&#41;
+                       arr
+                       &#40;recur &#40;do &#40;aset arr j &#40;int 1&#41;&#41; arr&#41;
+                              inc
+                              &#40;+ j inc&#41;&#41;&#41;&#41;
+                   a&#41;
+                 &#40;if &#40;zero? &#40;aget a i&#41;&#41;
+                   &#40;conj result i&#41;
+                   result&#41;&#41;&#41;&#41;&#41;&#41;&#41;
+</code></pre><p>It’s a sieve-with-hints function written by someone under the moniker "rhickey" ;) and it uses… Java arrays, reaching 2'000'000 limit in about a second.</p><p>So, that’s how I learned to stop worrying and love mutable arrays.</p>]]></content>
+  </entry>
+</feed>

@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>ikr / blog</title>
+  <link href="https://ikr.li/blog/atom.xml" rel="self"/>
+  <link href="https://ikr.li/blog"/>
+  <updated>2025-05-18T08:07:49+00:00</updated>
+  <id>https://ikr.li/blog</id>
+  <author>
+    <name>Ivan Krechetov</name>
+  </author>
+  <entry>
+    <id>https://ikr.li/blog/2018-11-27-decoding-stuff-into-a-typescript-enum.html</id>
+    <link href="https://ikr.li/blog/2018-11-27-decoding-stuff-into-a-typescript-enum.html"/>
+    <title>Decoding stuff into a TypeScript enum</title>
+    <updated>2018-11-27T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>Staying in a relatively safe realm of TypeScript code, with strict null checks, is all fine and dandy. Sometimes though one has to deal with the cruel outside world: JSON from the server or from the localStorage, user input, URL route parameters, and so on. Then we have to shoehorn the uncontrolled chaos from the outside into our nice algebraic type system which strives for making the impossible states unrepresentable. Here's a simple example: an enumeration of Languages.</p><pre class="language-javascript"><code class="lang-javascript language-javascript">enum Language { DE, FR, IT, EN }
+</code></pre><p>That's a handy thing to define, because, if you write a function returning some localized text, and happen to forget about English…</p><pre class="language-javascript"><code class="lang-javascript language-javascript">function thanks&#40;language: Language&#41;: string {
+  switch &#40;language&#41; {
+    case Language.DE:
+      return &quot;Danke&quot;;
+
+    case Language.FR:
+      return &quot;Merci&quot;;
+
+    case Language.IT:
+      return &quot;Grazie&quot;;
+  }
+}
+</code></pre><p>The TypeScript transpiler will complain:</p><pre><code>a.ts:8:40 - error TS2366: Function lacks ending return statement
+and return type does not include 'undefined'.
+8 function thanks&#40;language: Language&#41;: string {
+                                       &#126;&#126;&#126;&#126;&#126;&#126;</code></pre><p>That makes sure our pattern matching is exhaustive. Fewer bugs!</p><p>We'd certainly want to map the stringly-typed <code>'de'</code>, <code>'fr'</code>, <code>'it'</code>, and whatever else (<code>null</code>, <code>undefined</code>, <code>NaN</code>, <code>&#91;object Object&#93;</code>) obtained from the outside, into a member of the <code>Language</code> union, right at our module's boundary, before doing anything with the value. We'd need an utility like this:</p><pre class="language-javascript"><code class="lang-javascript language-javascript">function toLanguage&#40;x: any&#41;: Language {
+  switch &#40;String&#40;x&#41;&#41; {
+    case &quot;fr&quot;:
+      return Language.FR;
+
+    case &quot;it&quot;:
+      return Language.IT;
+
+    case &quot;en&quot;:
+      return Language.EN;
+
+    default:
+      return Language.DE;
+  }
+}
+</code></pre><p>Thus, we fall back to German on any kind of nonsense received.</p><p>Quite a bit of repetition here, no? It'll only get worse as the enum grows. We can do better, of course. Here's a little trick to avoid the repetition, stay type-safe, and never revise the <code>toLanguage</code> function later on, should the enum change.</p><pre class="language-javascript"><code class="lang-javascript language-javascript">function toLanguage&#40;x: any&#41;: Language {
+  const key = String&#40;x&#41;.toUpperCase&#40;&#41;;
+  const mayBeLanguage: Language | undefined = &#40;Language as any&#41;&#91;key&#93;;
+  return mayBeLanguage !== undefined ? mayBeLanguage : Language.DE;
+}
+</code></pre><p>Smart cast to the rescue! Code on.</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2018-09-03-parsing-fixed-width-data-columns-using-enums.html</id>
+    <link href="https://ikr.li/blog/2018-09-03-parsing-fixed-width-data-columns-using-enums.html"/>
+    <title>Parsing fixed-width data columns using enums</title>
+    <updated>2018-09-03T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>This week at work I had to deal with <a href='https://www.six-group.com/interbank-clearing/dam/downloads/bc-bank-master/bcbankenstamm'>fixed-width column data like this.</a> That is: a plain text file where each line holds a single record with a predefined order of columns/fields. Each column has a predefined length (in symbols), and, if the value is shorter, it's padded with spaces. Every line contains every column, and, therefore, every line has exactly the same length. For example,</p><pre><code> Field A | Field B   | Field C     |…
+01234567890123456789AB0123456789ABCD…
+X         YYY         ZZZ           …
+…</code></pre><p>having the lengths of 10, 12, and 14 respectively, would be</p><pre class="language-javascript"><code class="lang-javascript language-javascript">&#91;{
+    A: &quot;0123456789&quot;,
+    B: &quot;0123456789AB&quot;,
+    C: &quot;0123456789ABCD&quot;
+}, {
+    A: &quot;X&quot;,
+    B: &quot;YY&quot;,
+    C: &quot;ZZZ&quot;
+}, …&#93;
+</code></pre><p>Parsing the data, I came up with a very natural approach which relies on <a href='https://kotlinlang.org/docs/reference/enum-classes.html#enum-classes'>Kotlin/Java
+enums.</a> Nothing groundbreaking or novel here. I'm sure this trick is familiar to many. However, I liked how naturally the tool suits the problem, and decided to share.</p><pre class="language-kotlin"><code class="lang-kotlin language-kotlin">fun parseLine&#40;rawData: String&#41;: BankRecord {
+    val parseStringBound = { f: RawBankDataField -&gt; parseString&#40;rawData, f&#41; }
+
+    return BankRecord&#40;
+        clearingNumber = parseInt&#40;rawData, RawBankDataField.CLEARING&#95;NUMBER&#41;,
+        name = parseStringBound&#40;RawBankDataField.NAME&#41;,
+        postalAddress = parseStringBound&#40;RawBankDataField.POSTAL&#95;ADDRESS&#41;,
+        postalCode = parseStringBound&#40;RawBankDataField.POSTAL&#95;CODE&#41;,
+        city = parseStringBound&#40;RawBankDataField.CITY&#41;
+    &#41;
+}
+
+data class BankRecord&#40;
+    val clearingNumber: Int,
+    val name: String,
+    val postalAddress: String,
+    val postalCode: String,
+    val city: String
+&#41;
+
+private fun parseInt&#40;rawData: String, f: RawBankDataField&#41;: Int {
+    return parseString&#40;rawData, f&#41;.toInt&#40;&#41;
+}
+
+private fun parseString&#40;rawData: String, f: RawBankDataField&#41;: String {
+    return rawData.substring&#40;indicesRange&#40;offset&#40;f&#41;, f.length&#41;&#41;.trim&#40;&#41;
+}
+
+private fun indicesRange&#40;start: Int, length: Int&#41; = start.until&#40;start + length&#41;
+
+private fun offset&#40;f: RawBankDataField&#41;: Int {
+    var result = 0
+
+    for &#40;i in RawBankDataField.values&#40;&#41;&#41; {
+        if &#40;i == f&#41; return result
+        result += i.length
+    }
+
+    return result
+}
+
+private enum class RawBankDataField&#40;val length: Int&#41; {
+    GROUP&#40;2&#41;,                       // Gruppe
+    CLEARING&#95;NUMBER&#40;5&#41;,             // BCNr
+    SUBSIDIARY&#95;ID&#40;4&#41;,               // Filial-ID
+    NEW&#95;CLEARING&#95;NUMBER&#40;5&#41;,         // BCNr neu
+    SIC&#95;NUMBER&#40;6&#41;,                  // SIC-Nr
+    MAIN&#95;OFFICE&#95;CLEARING&#95;NUMBER&#40;5&#41;, // Hauptsitz
+    CLEARING&#95;NUMBER&#95;TYPE&#40;1&#41;,        // BC-Art
+    VALID&#95;SINCE&#40;8&#41;,                 // gültig ab
+    SIC&#40;1&#41;,                         // SIC
+    EURO&#95;SIC&#40;1&#41;,                    // euroSIC
+    LANGUAGE&#40;1&#41;,                    // Sprache
+    SHORT&#95;NAME&#40;15&#41;,                 // Kurzbez.
+    NAME&#40;60&#41;,                       // Bank/Institut
+    DOMICILE&#95;ADDRESS&#40;35&#41;,           // Domizil
+    POSTAL&#95;ADDRESS&#40;35&#41;,             // Postadresse
+    POSTAL&#95;CODE&#40;10&#41;,                // PLZ
+    CITY&#40;35&#41;                        // Ort
+}
+</code></pre><p>Note that, like in this example, we may need just a subset of the fields present in the data source. Nevertheless, obviously, we'd have to <i>enum</i>-erate all the columns anyway, up to the rightmost relevant to us. I particularly like that it's so easy to adapt to the changes in the data source format, and to support additional columns.</p><p>I only have to say that, if you have a lot of relevant fields packed into the data line, and a lot of lines, you may wish — for a better performance — <a href='https://en.wikipedia.org/wiki/Memoization'>to
+memoize</a> the <code>offset&#40;&#41;</code> function.</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2018-07-18-saltstack-states-for-lets-encrypt.html</id>
+    <link href="https://ikr.li/blog/2018-07-18-saltstack-states-for-lets-encrypt.html"/>
+    <title>SaltStack states for Let's Encrypt certificates on Debian with Nginx</title>
+    <updated>2018-07-18T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>Recently I've configured <a href='https://letsencrypt.org/'>Let's Encrypt certificates</a> for a staging HTTPS server for one of our clients. That was amazingly easy to do. I remember checking the ACME protocol client tools in the very beginning of Let's Encrypt initiative. Back then the tools were, of course, very immature: hard to install and configure, and they only worked in interactive mode. It's all in the past now.</p><p>Basically, I took <a href='https://techtalk.blog/simple-and-free-ssl-certificates-using-letsencrypt-and-nginx-530f03aee07'>this great blog post</a> and codified it in <a href='https://docs.saltstack.com/en/latest/topics/tutorials/starting_states.html'>SaltStack states.</a> SaltStack is an automatic configuration management tool similar to <a href='https://puppet.com/solutions/configuration-management'>Puppet</a> and <a href='https://www.ansible.com/use-cases/configuration-management'>Ansible</a>. It's quite simple and declarative, yet it scales up to larger infrastructure. Our sysadmins love it.</p><p>Below is the annotated YAML of my solution.</p><pre class="language-yaml"><code class="lang-yaml language-yaml">backports:
+  pkgrepo.managed:
+    - name: deb http://ftp.de.debian.org/debian jessie-backports main contrib non-free
+    - file: /etc/apt/sources.list.d/backports.list
+
+dehydrated:
+  pkg.installed:
+    - fromrepo: jessie-backports
+    - require:
+      - pkgrepo: backports
+</code></pre><p>That adds the jessie-backports Debian package repository, and installs the <a href='https://dehydrated.io/'>Dehydrated</a> ACME client from it. Starting with Debian Stretch (v9) it's <a href='https://packages.debian.org/search?keywords=dehydrated&searchon=names&suite=all&section=all'>not necessary to add the backports repo.</a> Then, the section above can be reduced to just this:</p><pre class="language-yaml"><code class="lang-yaml language-yaml">dehydrated:
+  pkg.installed
+</code></pre><p>The <code>salt://web-server/conf/example.com</code> nginx configuration file:</p><pre class="language-nginx"><code class="lang-nginx language-nginx">server {
+    listen 80;
+    server&#95;name example.com;
+
+    include /etc/nginx/conf.d/&#42;.http.location.inc;
+
+    location / {
+        return 301 https://example.com$request&#95;uri;
+    }
+}
+
+server {
+    listen 443 default&#95;server ssl;
+    server&#95;name example.com;
+
+    ssl on;
+    include /etc/nginx/conf.d/ssl.inc;
+    include /etc/nginx/conf.d/&#42;.location.inc;
+
+    # ...
+}
+</code></pre><p>Which is then referenced from the <code>salt://web-server/init.sls</code>:</p><pre class="language-yaml"><code class="lang-yaml language-yaml">/etc/nginx/sites-enabled/example.com:
+  file.managed:
+    - source: salt://web-server/conf/example.com
+    - require:
+      - pkg: nginx
+    - watch&#95;in:
+      - service: nginx
+
+/etc/nginx/conf.d/acme-challenge.http.location.inc:
+  file.managed:
+    - source: salt://web-server/conf/acme-challenge.http.location.inc
+    - require:
+      - pkg: nginx
+      - pkg: dehydrated
+    - watch&#95;in:
+      - service: nginx
+</code></pre><p>The <code>salt://web-server/conf/acme-challenge.http.location.inc</code> file is nothing but:</p><pre class="language-nginx"><code class="lang-nginx language-nginx">location &#94;&#126; /.well-known/acme-challenge {
+    auth&#95;basic &quot;off&quot;;
+    alias /var/lib/dehydrated/acme-challenges;
+}
+</code></pre><p>Now the tricky bit. The <code>/etc/nginx/conf.d/ssl.inc</code> referenced in the <code>salt://web-server/conf/example.com</code> will in the end contain the path to the certificate file, and the path to the secret server key file. We don't have those initially, before the ACME challenge takes place. Thus, we need some “transitional” certificate and key to make nginx start and serve the ACME challenge Web location over HTTP.</p><pre class="language-yaml"><code class="lang-yaml language-yaml">ssl&#95;inc&#95;transitional:
+  cmd.run:
+    - name: &gt;
+        echo 'ssl&#95;certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;' &gt; /etc/nginx/conf.d/ssl.inc &amp;&amp;
+        echo 'ssl&#95;certificate&#95;key /etc/ssl/private/ssl-cert-snakeoil.key;' &gt;&gt; /etc/nginx/conf.d/ssl.inc
+    - unless: test -f /etc/nginx/conf.d/ssl.inc
+    - require:
+      - pkg: nginx
+    - require&#95;in:
+      - service: nginx
+
+/etc/dehydrated/domains.txt:
+  file.managed:
+    - contents:
+      - example.com
+    - require:
+      - pkg: dehydrated
+
+initial&#95;lets&#95;encrypt&#95;cert:
+  cmd.run:
+    - name: /usr/bin/dehydrated --cron
+    - unless: test -d /var/lib/dehydrated/certs/example.com
+    - require:
+      - file: /etc/nginx/conf.d/acme-challenge.http.location.inc
+      - file: /etc/dehydrated/domains.txt
+
+ssl&#95;inc:
+  cmd.run:
+    - name: &gt;
+        /bin/systemctl stop nginx &amp;&amp;
+        echo 'ssl&#95;certificate /var/lib/dehydrated/certs/example.com/fullchain.pem;' &gt; /etc/nginx/conf.d/ssl.inc &amp;&amp;
+        echo 'ssl&#95;certificate&#95;key /var/lib/dehydrated/certs/example.com/privkey.pem;' &gt;&gt; /etc/nginx/conf.d/ssl.inc &amp;&amp;
+        /bin/systemctl start nginx
+    - onlyif: test -f /etc/nginx/conf.d/ssl.inc &amp;&amp; cat /etc/nginx/conf.d/ssl.inc | grep -F ssl-cert-snakeoil
+    - require:
+      - cmd: initial&#95;lets&#95;encrypt&#95;cert
+</code></pre><p>The final part is the certificate renewal cron job:</p><pre class="language-yaml"><code class="lang-yaml language-yaml">root&#95;email&#95;for&#95;cron:
+  cron.env&#95;present:
+    - user: root
+    - name: MAILTO
+    - value: webmaster@example.com
+
+lets&#95;encrypt&#95;cert&#95;update:
+  cron.present:
+    - name: chronic /usr/bin/dehydrated --cron &amp;&amp; systemctl reload nginx
+    - identifier: lets&#95;encrypt&#95;cert&#95;update
+    - user: root
+    - dayweek: 0
+    - hour: 4
+    - minute: 2
+</code></pre><p>The <code>chronic</code> tool is a part of the <a href='https://joeyh.name/code/moreutils/'>moreutils Debian package.</a> It runs a command quietly unless it fails. Setting the <code>MAILTO</code> environment variable for cron makes sure all the failures are e-mailed to <a href='mailto:webmaster@example.com'>webmaster@example.com.</a> The cron job configured above will run every Sunday at 04:02.</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2018-07-12-react-set-state-promise-for-tests.html</id>
+    <link href="https://ikr.li/blog/2018-07-12-react-set-state-promise-for-tests.html"/>
+    <title>Providing a setState completion Promise for tests</title>
+    <updated>2018-07-12T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>After upgrading our live system from Node 6 to Node 8 I got super excited about acquiring the async/await capability, and was in that raving “async/await all the things!” mode. It was very satisfying to see the callbacks-heavy production and test code to practically halve in size. Not only was it less code now, but also the code structure got completely flat and trivial to follow.</p><p><a href='https://github.com/facebook/react/issues/2642'>Some things are harder to async/await</a> than others. Today I faced the following problem.</p><p>I have a tiny React component which is <a href='http://ikr.su/h/react-star-rating-input/demo.html'>a star rating
+input.</a> It highlights the prospective star rating value on mouse hover, and sets the new value on mouse click. The prospective value is stored in the component's <code>state</code>, which is updated on <code>mouseEnter</code>/<code>mouseLeave</code> DOM event. Then the <code>state.prospectiveValue</code> is used to highlight the potential rating selection.</p><p>I don't always write React components, but when I do, I test-drive them. Let me replay here my <code>state.prospectiveValue</code> support implementation, driven by tests, <a href='https://mochajs.org/'>in
+Mocha</a>. First, we mount the component with <a href='http://airbnb.io/enzyme/'>enzyme,</a> and fabricate some initial <code>prospectiveValue</code>:</p><pre class="language-javascript"><code class="lang-javascript language-javascript">let wrapper
+
+beforeEach&#40;done =&gt; {
+    wrapper = mount&#40;&lt;StarRatingInput value={1} /&gt;&#41;
+    wrapper.setState&#40;{ prospectiveValue: 2 }, done&#41;
+}&#41;
+</code></pre><p>Mind the <code>done</code> callback passed to <code>setState</code>, to make sure that Mocha <a href='https://reactjs.org/docs/react-component.html#setstate'>waits for the state change
+to succeed</a> before proceeding with each of the test cases. Here's the first one of them:</p><pre class="language-javascript"><code class="lang-javascript language-javascript">it&#40;'sets new prospective value on mouse hover for a star', &#40;&#41; =&gt; {
+    // Star at 0-based index 3 corresponds to a rating value of 4
+    wrapper.find&#40;'a.star-rating-star'&#41;.at&#40;3&#41;.simulate&#40;'mouseEnter'&#41;
+    assert.strictEqual&#40;wrapper.state&#40;&#41;.prospectiveValue, 4&#41;
+}&#41;
+</code></pre><p>The test is red: <code>2 != 4</code>. Let's make it green, changing the React component code.</p><pre class="language-javascript"><code class="lang-javascript language-javascript">handleStarMouseEnter&#40;value&#41; {
+    this.setState&#40;{ prospectiveValue: value }&#41;
+}
+</code></pre><p>Obviously.</p><p>Well, the test is still red. <code>setState</code> is asynchronous, and we have to pass it a callback, like we did in <code>beforeEach&#40;&#41;</code>, in order to wait for its conclusion. How can we possibly do that now? My first thought was introducing a func prop <code>onSetStateDone</code>, and passing it to all the <code>setState&#40;&#41;</code> calls within the React component. Another option, which I learned about later, is <a href='https://github.com/facebook/react/issues/2642#issuecomment-66676469'>overriding the
+componentDidUpdate.</a> Both ways would require pyramids of callbacks to implement. Meh. Could that instead be a nail for my new shiny async/await hammer? You bet!</p><pre class="language-javascript"><code class="lang-javascript language-javascript">private &#95;promiseSetStateDone: Promise&lt;void&gt;
+
+get promiseSetStateDone&#40;&#41; {
+    return this.&#95;promiseSetStateDone
+}
+
+constructor&#40;props: Props&#41; {
+    super&#40;props&#41;
+    this.&#95;promiseSetStateDone = Promise.resolve&#40;&#41;
+    this.state = { prospectiveValue: 0 }
+}
+
+</code></pre><p>Then, instead of</p><pre class="language-javascript"><code class="lang-javascript language-javascript">this.setState&#40;{ prospectiveValue: value }&#41;
+</code></pre><p>we'll do</p><pre class="language-javascript"><code class="lang-javascript language-javascript">this.&#95;promiseSetStateDone = new Promise&#40;resolve =&gt; {
+    this.setState&#40;{ prospectiveValue: value }, resolve&#41;
+}&#41;
+</code></pre><p>Resulting in the test code like this:</p><pre class="language-javascript"><code class="lang-javascript language-javascript">it&#40;'sets new prospective value on mouse hover for a star', async &#40;&#41; =&gt; {
+    // Star at 0-based index 3 corresponds to a rating value of 4
+    wrapper.find&#40;'a.star-rating-star'&#41;.at&#40;3&#41;.simulate&#40;'mouseEnter'&#41;
+    await wrapper.instance&#40;&#41;.promiseSetStateDone
+
+    assert.strictEqual&#40;wrapper.state&#40;&#41;.prospectiveValue, 4&#41;
+}&#41;
+</code></pre><p>…And the test is now green. We can proceed test-driving.</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2016-10-14-components-and-modules.html</id>
+    <link href="https://ikr.li/blog/2016-10-14-components-and-modules.html"/>
+    <title>On components and modules</title>
+    <updated>2016-10-14T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>At the place where I <a href='http://www.xiag.ch/'>work currently</a>, we tend to prefer multiple independently deployable small software <i>components</i> to huge single-piece monoliths. Component is an overloaded term that can easily be misinterpreted. By <i>component</i> I personally mean something very specific. To avoid the ambiguity, let me first enumerate what it's not. A component is not a programming language namespace or class, it's not a file, and not an in-process linked library like a jar, a dll, a Composer- or an NPM package. Component is a unit of deployment, and is also an <i>actor.</i> "Actor" means it's, well, active &ndash; running in its own process, initiating events, or reacting to events.</p><p>As many others these days, we found following the <a href='http://martinfowler.com/articles/microservices.html'>Microservices</a> architectural style quite beneficial. Normally, we connect components to each other via HTTP, or via message-oriented middleware, passing data around in JSON format. Thus, a component either serves HTTP requests, or reads from- or writes to a message queue. That flavor of Microservices style has a number of benefits:</p><ul><li>HTTP &ndash; all the goodies of the Web (caching, proxy-ing, gzip-ing, basic auth, accessibility and  readability &ndash; just <code>curl</code> it or access from the browser directly)</li><li>Easy composition: piping stuff into stuff, <code>curl</code>, <code>json</code>, and <code>ramda-cli</code> can get you very far;  often you can implement a whole new feature in a few lines of Bash</li><li>Super-low coupling</li><li>Parts are easy to understand</li><li>If a component has rotten beyond recovery, just rewrite it; no big deal</li><li>Freedom in choosing the programming language for each component independently</li><li>Coherent and fast test suites</li><li>Scalability</li><li>Statelessness</li><li>Value-based, data-oriented interfaces</li></ul><p>It's not all bright and happy, of course. Microservices come with a price, and also caused us a certain bit of pain. That's not the point of this post though. Instead, I want to claim that good modularization is essential to software project success whether you opt for microservices or not. What is a <i>module?</i> I'd say it's any unit of abstraction: very broad, very general thing. It's pretty much any building block for constructing software.</p><p>Not every <i>module</i> has to be a microservice &ndash; thus, a separate <i>component.</i> Very often an in-process <a href='https://packagist.org/'>Composer package</a> or <a href='https://www.npmjs.com/'>npm module</a> is a perfectly appropriate building block.</p><p>It's quite a widespread fallacy to conflate the deployment architecture view, and the logical architecture view. One may hear "We're not Facebook to care about microservices, therefore it's OK to toss all the code into a single amorphous ball of mud &ndash; aka The Monolith". That's a false dichotomy, of course. There's nothing inherently wrong with a monolithic application in the deployment view: a single process of execution, one application server listening on a network port. Facebook itself is a single multi-gigabyte-large executable file. Yet, there's pretty much everything wrong about a monolith in the logical view: no clear-cut borders between modules, everything depends on everything else.</p><p>Coming down to the basics, why exactly should we (1) split a software system into modules, and, <i>also,</i> (2) strive to keep those modules in separate repositories in a version control system? The (2) is my personal opinion I'd like to substantiate.</p><p>Let's start by answering the first question. As a matter of fact, a Turing machine couldn't care less whether we glue the tape together from separate strips or not. The tape cut is required by our limited minds to disassemble a hard problem's solution into digestible pieces. Abstraction and composition are the only two weapons we have to combat the complexity. Software development lives and dies by the composable abstractions <i>of just the right size.</i></p><p>Now, let's go on to the second question. Is it possible to have composable abstractions of just the right size within a single Git repository containing all the application's code? Yes, of course! Then, though, the "just the right size" part comes into consideration. Abstractions within the application <a href='https://en.wikipedia.org/wiki/Separation_of_concerns'>work best</a> when each has the <a href='https://en.wikipedia.org/wiki/Single_responsibility_principle'>only reason to change</a> &ndash; it's own technical or business <i>concern.</i> To which programming language construct &ndash; say, in PHP &ndash; such a concern <a href='https://en.wikipedia.org/wiki/Bijection'>bijectively</a> corresponds? A function? No. A class or a trait? Definitely not. A namespace? That probably is the closest approximation, which may actually work given a cast-iron discipline of the project participants. However, namespaces don't accommodate well artifacts like database schemas and stored procedures, or cronjobs.</p><p>Conclusion: concern boundaries in a single-repository monolithic code base are seriously blurred. What can prevent crossing those boundaries and slowly but surely crawling to the <a href='http://www.laputan.org/mud/'>Big Ball of Mud</a> architecture, where everything depends on everything else? Only the clear understanding and active enforcement of consistent program design, and the aforementioned discipline. How realistic is to expect that in an ordinary project, where not all the developers are seniors with over 15 years of industry experience?</p><p>Thereby, principally, modules isolated into their own source code repositories are the concerns' border guards. That purpose of modularization will stay relevant forever, even when computers become a million times faster.</p><p>So, what do we want? Composable modules with clear-cut borders! Do we want them actually to work? You bet!</p><p>The easiest way I know to ensure that the code works correctly is the test-driven development (TDD). Is it possible to practice TDD when a unit test suite's run time is, say, over 10 seconds? Definitely not! That imposes an objective hardware-bound restriction on how big of a module one can build. Indeed, computers get faster or more parallel all the time. On the other hand, programming languages and platforms get more sophisticated, and tend to do more and more things. May well be that those two opposing trends will compensate each other eternally.</p><p>So, the next time you'll be adding a file to your code base, may be consider sprouting a new module with its own repository instead?</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2015-01-27-is-an-inheritance.html</id>
+    <link href="https://ikr.li/blog/2015-01-27-is-an-inheritance.html"/>
+    <title>Inheritance vs. is-a</title>
+    <updated>2015-01-27T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>I was arguing with a book today. It's more like <i>the</i> book, actually. If a professional programmer would choose just one book to read about their craft, it would probably be Steve McConnel's <a href='http://cc2e.com/'>Code Complete</a>. So, in the section about the class design the author quotes and endorses himself an advice of a peer of his, yet another software guru &ndash; <a href='http://www.aristeia.com/books.html'>Scott Meyers</a>. Here's the quote:</p><p><i>The single most important rule in object-oriented programming with C++ is this: public inheritance means "is a." Commit this rule to memory.</i></p><p>"Whoa, really? That categorically?" &ndash; told I to <i>the book,</i> being pretty sure it's more nuanced than just that straight rule. Well, who am I to argue with Mr. Meyers and Mr. McConnel? I'm simply embarrassing myself writing this right now, am I not? Please bare with me for a moment before rushing to the conclusion. The two gurus <i>are</i> right of course, but there's a catch: the <i>is-a</i> they're talking about isn't the is-a you're used to in the real world. Here's a great example I heard from <a href='http://blog.cleancoder.com/'>Robert C. Martin</a> on <a href='http://www.hanselman.com/blog/HanselminutesPodcast145SOLIDPrinciplesWithUncleBobRobertCMartin.aspx'>Hanselminutes</a>, &ndash; I'll take the main idea and sugar-coat it a bit. Let it be Plato casually addressing Meletus.</p><p>&ndash; Come hither, Meletus, and let me ask a question of you. Is square a rectangle?</p><p>&ndash; Of course it is! What kind of question is that?</p><p>&ndash; Good. Let's imagine us implementing a <code>Rectangle</code> class, having methods <code>setHeight&#40;float h&#41;</code> and    <code>setWidth&#40;float w&#41;</code>, inflating or deflating the figure, keeping its center's coordinates    fixed. Say, it's a vector graphics program... You tell a rectangle to change the height or width,    and it triggers a redraw.</p><p><img src="assets/rect-inflate-deflate.png" alt="Rectangle inflate and deflate" /></p><p>&ndash; Sure. But I'd advise you to indicate the units of measurement in such an interface.</p><p>&ndash; Oh, totally. However, that's irrelevant to what I'm trying to convey. Suppose now we also need a    class for a <code>Square</code>. Is <code>Square</code> a <code>Rectangle</code>?</p><p>&ndash; You've already asked.</p><p>&ndash; Indeed. Should I code it as <code>class Square extends Rectangle</code> then?</p><p>&ndash; Yes...</p><p>&ndash; What will be special about the <code>Square</code>'s implementation of <code>setHeight</code> and <code>setWidth</code>?</p><p>&ndash; Well, a <code>Square</code> has to remain a square. Therefore, adjusting width/height will also result in    adjusting height/width.</p><p>&ndash; Precisely! Now imagine we have a raster viewport over the plane of figures, that gets rendered on    a computer display. It subscribes to the figures' geometry changes, and decides whether there's a    need to recalcualte/redraw the raster. Then, at some point it has the following configuration.</p><p><img src="assets/viewport-and-square.png" alt="Viewport and a square" /></p><p>&ndash; Cool drawing Plato!</p><p>&ndash; Thanks. Now, the green hatched square, which is so close to the viewport's border, receives a    command to increase its width. The viewport has been designed by an experienced OOP practitioner,    and, of course, it works with <code>Rectangles</code> (<code>Squares</code> included) polymorphically. It thinks:    "Alright, the width grew, but there's no vertical overlap with the viewport area, I can safely    ignore that change!" TADA! A bug!</p><p>&ndash; But... but...</p><p>&ndash; So, is <code>Square</code> a <code>Rectangle</code>?</p><p>&ndash; #$$%<sup>&*~@-!!!</sup></p><p>Where exactly did it go wrong? How could Plato trick Meletus? Let us reiterate. A square is definitely a rectangle, no doubt about that. But is <code>Square</code> a <code>Rectangle</code>, having the public interface methods <code>setHeight</code> and <code>setWidth</code> described above? Hell no! There's a very special meaning of is-a for the object classes' inheritance, and it's defined by the <a href='https://en.wikipedia.org/wiki/Liskov_substitution_principle'>Liskov Substitution Principle</a>: an instance of a subclass must be usable in any context where an instance of the superclass is used, and there must be no semantic incompatibilities. Clearly, the syntactic adherence to the same public interface is not enough to assure the is-a relationship in code. <code>Square</code> broke the public interface semantics contract of <code>Rectangle</code>, and therefore, <code>Square</code> is-not-a <code>Rectangle</code> here.</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2014-12-21-the-true-meaning-of-dry.html</id>
+    <link href="https://ikr.li/blog/2014-12-21-the-true-meaning-of-dry.html"/>
+    <title>The true meaning of DRY</title>
+    <updated>2014-12-21T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>I've been listening to <a href='http://articles.coreyhaines.com/'>Corey Haines</a> talking about <a href='https://leanpub.com/4rulesofsimpledesign'>his exploration</a> of <a href='https://kentbeck.com/'>Kent Beck's</a> 4 Rules of Simple Design, and he has brought up an exceptionally important point about the Don't Repeat Yourself <i>(DRY)</i> principle. DRY isn't about running an automatic repetition detection tool on your code base, and making sure it finds nothing. But rather it's about not repeating <i>the knowledge</i> in the code. There's <i>incidental,</i> and there's <i>essential</i> repetition. Chasing the incidental repetition is a road to hell: things that look the same today will most certainly change differently in the future.</p><p>Just as almost everything else in software, the <i>essential DRY</i> can be traced back to a paper from the 1970-s. This time, it's Parnas'es <a href='https://wstomv.win.tue.nl/edu/2ip30/references/criteria_for_modularization.pdf'>"On the criteria to be used in decomposing systems into modules"</a>. Encapsulating a design decision into a module, suggested by Parnas, is pretty much equivalent to not repeating knowledge in the code.</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2014-11-30-a-story-about-naming.html</id>
+    <link href="https://ikr.li/blog/2014-11-30-a-story-about-naming.html"/>
+    <title>A story about naming</title>
+    <updated>2014-11-30T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>Long time ago I contracted for a company selling digital photo prints. Me and a colleague of mine developed an MS Windows application in which you would drop some JPEG-s, crop, rotate them, fix some red eyes, and then ultimately order prints in various formats. And by Windows I mean the just released XP &ndash; that's what <i>I</i> had back then; while our lowest supported OS was Windows 98.</p><p>There was a twist though: the <i>customer</i> wanted a <i>custom</i> look for the application. Very, very custom. So custom that we had to cover the whole window client area with bitmaps. Now, add to that numerous states of controls: disabled, pressed, checked, disabled and checked, mouse hovering, etc. Then, there was no transparency support for bitmaps, as there was no GDI+ for Windows 98 and Windows 2000. Therefore, graphic designers had to draw every text on every background, for every of the 4 supported languages in Photoshop, with their nice font, and then give it to us as... correct, a bitmap.</p><p>Ever since I've never had a project with accidental complexity that high. A tiniest thing required tons of work and rigorous attention to details. But that's not the point of the story, actually.</p><p>So, as you can imagine we've ended up with <i>thousands</i> of bitmaps and color constants. They were stored, of course, as <i>resources</i> in resource DLL-s, one DLL per language, and their ID-s were aliased with <code>#define</code>-s in a long <code>resource.h</code> file. That was a pretty standard setup for the old-school Win32 apps. On top of the resources we had an object-oriented widgets implementation, often doubling in the object properties in <code>camelCase</code> the <code>CONST&#95;CASE</code> names from <code>resource.h</code>. Now, the interesting part was how we named our visual elements. Here are some examples for you:</p><ul><li><code>lightBlueBackground</code></li><li><code>redButtonDisabledText</code></li><li><code>blueFrameLeftTopCorner</code></li><li><code>yellowishGradientInTheCenter</code></li></ul><p>Thus, the names reflected what color or pattern elements had, or where they were located in the GUI layout. We often reused the same visual element in multiple widgets. A light blue gradient could easily appear in a dozen of different places.</p><p>After a few months we've successfully shipped the first version, and plenty of end users could appreciate our unique and fresh custom look. He-he. That was sarcasm. Frankly, I was quite glad it was all over.</p><p>Then, about a year later we've got a call. The customer was really excited: they were expanding to Scandinavian market &ndash; buying a Swedish, a Norwegian, and a Finnish digital photos printing company. Oh yeah, and they were also running a total re-branding in Switzerland. They were even going to change the company name. Now guess whose brilliant ordering software they wanted to use for all the new brands... While you're at it, guess how many of the <code>lightBlueGradient</code>-s stayed either light or blue in any of the new brands' GUI-s. Yep, you guessed it right: almost none. Moreover, many visual elements used in several places in the current version &ndash; just because it was all, say, yellowish &ndash; were going to get a completely different look in the new revision. And finally, let's not forget that instead of 4 bitmap localizations we were going to support 7. What an epic surprise...</p><p>So, the next time you get an idea of calling something a <code>redHeader</code> or a <code>rightColumn</code>, may be just stop for a moment, and think if that's really the best you can do.</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2011-09-26-just-need-it-mutable-sometimes.html</id>
+    <link href="https://ikr.li/blog/2011-09-26-just-need-it-mutable-sometimes.html"/>
+    <title>Well, I guess sometimes you just need stuff being mutable</title>
+    <updated>2011-09-26T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>I’ve been generating some prime numbers in Clojure lately, and I was struggling to get decent performance when working with “idiomatic” immutable sequences. I’ve started with a naive implementation of a lazy prime sequence:</p><pre class="language-clojure"><code class="lang-clojure language-clojure">&#40;defn denormalized-prime-indicator &#91;n smaller-primes&#93;
+    &#40;reduce
+        &#42;
+        &#40;map
+            #&#40;rem n %&#41;
+            &#40;filter #&#40;&lt;= &#40;&#42; % %&#41; n&#41; smaller-primes&#41;&#41;&#41;&#41;
+
+&#40;defn prime-rel? &#91;n smaller-primes&#93;
+    &#40;if &#40;&gt; &#40;denormalized-prime-indicator n smaller-primes&#41; 0&#41; true false&#41;&#41;
+
+&#40;defn next-prime &#91;cnt smaller-primes&#93;
+    &#40;if &#40;prime-rel? cnt smaller-primes&#41;
+        cnt
+        &#40;recur &#40;inc cnt&#41; smaller-primes&#41;&#41;&#41;
+
+&#40;def prime-seq
+    &#40;map last
+        &#40;iterate
+            &#40;fn &#91;p-seq&#93;
+                &#40;conj p-seq &#40;next-prime &#40;inc &#40;last p-seq&#41;&#41; p-seq&#41;&#41;&#41;
+            &#91;2&#93;&#41;&#41;&#41;
+</code></pre><p>It took over a minute to compute all the primes under 200'000, and over 2 hours to crunch till 2'000'000. Then, I went for <a href='http://en.wikipedia.org/wiki/Sieve_of_Eratosthenes'>Sieve of Eratosthenes</a>:</p><pre class="language-clojure"><code class="lang-clojure language-clojure">&#40;defn primes-below &#91;n&#93;
+    &#40;loop &#91;primes &#91;&#93; source &#40;range 2 n&#41;&#93;
+        &#40;if &#40;empty? source&#41;
+            primes
+            &#40;recur
+                &#40;conj primes &#40;first source&#41;&#41;
+                &#40;doall &#40;filter #&#40;not &#40;= &#40;rem % &#40;first source&#41;&#41; 0&#41;&#41; source&#41;&#41;&#41;&#41;&#41;&#41;
+</code></pre><p>Here, n = 200'000 took 24 seconds, and n = 2'000'000 — 44 minutes. Kind of an improvement, right? By the way, mind the “doall” at the last line. If you remove it, the poor thing dies from heap overeating, when lazy “filters” stack on top of each other long enough.</p><p>Still, 44 minutes for a 2'000'000-limit? That sounds just too slow. Therefore, I wrote a quick and dirty sieve function in PHP, and verified I’m getting the same results by checking the numbers' sum:</p><pre class="language-php"><code class="lang-php language-php">&lt;?php
+
+$sieve = array&#95;fill&#40;0, 2000000, true&#41;;
+
+$sum = 0;
+$p = 2;
+
+while &#40;$p &lt; count&#40;$sieve&#41;&#41; {
+    $sum += $p;
+
+
+    for &#40;$i = 2 &#42; $p; $i &lt; count&#40;$sieve&#41;; $i += $p&#41; {
+        $sieve&#91;$i&#93; = false;
+    }
+
+    $p++;
+
+    while &#40;&#40;$p &lt; count&#40;$sieve&#41;&#41; &amp;&amp; !$sieve&#91;$p&#93;&#41; {
+        $p++;
+    }
+}
+
+echo &quot;$sum\n&quot;;
+</code></pre><p>Time to find all the primes under 2'000'000? Two freaking seconds. If you bother writing this in C, you may shrink it down to under 100 ms, I’m sure.</p><p>Wait, but what if I do need generating primes fast in Clojure? And the answer found me</p><pre class="language-clojure"><code class="lang-clojure language-clojure">&#40;defn sieve &#91;n&#93;
+  &#40;let &#91;n &#40;int n&#41;&#93;
+    &quot;Returns a list of all primes from 2 to n&quot;
+    &#40;let &#91;root &#40;int &#40;Math/round &#40;Math/floor &#40;Math/sqrt n&#41;&#41;&#41;&#41;&#93;
+      &#40;loop &#91;i &#40;int 3&#41;
+             a &#40;int-array n&#41;
+             result &#40;list 2&#41;&#93;
+        &#40;if &#40;&gt;= i n&#41;
+          &#40;reverse result&#41;
+          &#40;recur &#40;+ i &#40;int 2&#41;&#41;
+                 &#40;if &#40;&lt; i root&#41;
+                   &#40;loop &#91;arr a
+                          inc &#40;+ i i&#41;
+                          j &#40;&#42; i i&#41;&#93;
+                     &#40;if &#40;&gt;= j n&#41;
+                       arr
+                       &#40;recur &#40;do &#40;aset arr j &#40;int 1&#41;&#41; arr&#41;
+                              inc
+                              &#40;+ j inc&#41;&#41;&#41;&#41;
+                   a&#41;
+                 &#40;if &#40;zero? &#40;aget a i&#41;&#41;
+                   &#40;conj result i&#41;
+                   result&#41;&#41;&#41;&#41;&#41;&#41;&#41;
+</code></pre><p>It’s a sieve-with-hints function written by someone under the moniker "rhickey" ;) and it uses… Java arrays, reaching 2'000'000 limit in about a second.</p><p>So, that’s how I learned to stop worrying and love mutable arrays.</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2010-12-21-agile-shmagile.html</id>
+    <link href="https://ikr.li/blog/2010-12-21-agile-shmagile.html"/>
+    <title>The Agile (Shmagile) custom software development</title>
+    <updated>2010-12-21T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>At the point when Agile has hit the fan in Russia, I had already left two own-product-based software companies; and since then was only doing custom software development. Therefore I will not generalize, claiming that Agile movement is just a publicity stunt to sell seminars and Scrum Master certificates, even though Steve Yegge <a href='http://steve-yegge.blogspot.com/2006/09/good-agile-bad-agile_27.html'>says so</a>. May be indeed it works great <i>for products</i>. I don't know, and won't judge until I try. What I do know, is that some of the core Agile practices are useless, and can even become harmful, — for the projects where external customers ask to develop software for money.</p><p>What⁈ I must be <a href='http://www.youtube.com/watch?v=08xQLGWTSag'>doing it wrong</a>. How can cute unicorns and rainbows from the warm fuzzy Agile cloud do any harm? Alright, let's double-check together. Here's my interpretation of what that core practices are.</p><p>The development is done in short (1—2 week) cycles. After each one a new functional version is deployed on a productive server accessible by the customer. At the end of each iteration we announce the results, present the new version at a meeting, and solicit the feedback. We briefly define the features (user stories) we need to implement in the nearest future, and estimate how much work they are. We also collect and prioritize all the feedback we receive along the way. Having assembled all those elements into a regularly reviewed priority list, we'd just pick stuff from the top for the next iteration.</p><p>Sounds pretty Agile, huh? I intentionally omit the code-related practices here. We'll return to them later. For the moment, let's focus on <i>the process</i>.</p><p>So, that was <i>the theory</i> of operation. Now, are you ready to meet <i>the reality</i>?</p><p>Let me make up a sample customer project for you. I may exaggerate a little for a deeper artistic effect, but, if you've ever built software for a customer, you'd agree that's, in general, how stuff is actually done in our sector of economy.</p><p>The imaginary application you'll build is going to be a legacy system rewrite. Actually, it'll be the second attempt. Your predecessors failed miserably, but, because of some reasons, the customer still believes that <a href='http://www.joelonsoftware.com/articles/fog0000000069.html' title="Things You Should Never Do, Part I - Joel on Software">rewrite is a good idea</a>. So, you'll have the utterly worst possible specification: an existing system.</p><p>Probably, a conversation like this would take place at a kick-off meeting:</p><p>— The app <a href='http://raptureinvenice.com/?p=89' title="Rapture In Venice: Is Good Code Impossible? Part 2: Project Manipulation Patterns">is really simple</a>. Look! It even already exists!</p><p>— Hm, true, but…</p><p>— Oh, come on, <a href='http://www.youtube.com/watch?v=R2a8TRSgzZY' title="YouTube - The Vendor Client relationship - in real world situations">we can make it</a>! We've even made a huge paper folder (aka <i>the folder</i>) full of screen shots of the existing system, so all must be clear.</p><p>— Well, we believe it should be possible to have a basic implementation of this functionality in a year. But, for sure, no fancy stuff. Just a bare bones solution.</p><p>— Right, we can elaborate later. But you won't do a Web site with <a href='http://www.htmlhelp.com/reference/html40/frames/frame.html' title="HTML Frame">frames</a>, as it is now, will you?</p><p>— Of course not.</p><p>— Perfect! So we'll have <i>all</i> the same functionality, but implemented better. Expectations set.</p><p>— We'd like to develop iteratively: 2 week cycles. So that you clearly see the progress and have full control. And we, in turn, can immediately react to change. Let's do it the <i>Agile</i> way.</p><p>— What? Cycles? We didn't really plan that many meetings… But OK, we guess you know better how software is developed.</p><p>So you start burning your development cycles. You keep deploying a new version every iteration, making steady progress. Then, in a few months the customer asks:</p><p>— So, how are we doing? Is the project on track?</p><p>— Let us check… If we enumerate all the open functional points and the completed ones, and make a proportion… Yes, it's still possible to release on time, but things are getting very tight because of those two search module rewrites, and the complete front-end redesign we did according to your feedback. We should be very careful planning the iterations, so that high priority issues make it to the release, while not so important stuff we leave out of the first version.</p><p>— Huh? What do you mean — leave out? Haven't you seen <i>the folder⁈</i> You promised us we'll have it all in a year!</p><p>— But we thought we're doing it the Agile way…</p><p>— Look! We have an approved budget for this year, and when the year is over the application must be 100% done. Otherwise the project is a failure. Ah, by the way, we're already starting to plan the next year's budget, and need you telling us what it takes to add a CRM, XML API-s, reports, bar charts, PDF export, billing module, and SAP integration; we also need a mobile version of the app, and two more system installations, which will be <i>exactly</i> the same; well, may be a little different… So, we need an estimation from you, and a plan. Yes, for the whole year.</p><p>— Do you have the specification for all that?</p><p>— No, sorry. But we're sure you'll offer us a sensible solution. Our budget meeting is in 3 weeks.</p><p>How much Agile would you feel in this situation? But wait, it can be worse. You naively believe that the customer is <i>using</i> the system you deploy at the end of each iteration. But — surprise — they totally don't! The only time they pay any attention to the application is during your meetings. And they are thoughtfully nodding then, asking questions — ultimately to conclude that the system is not finished yet, and all those missing things they're asking about are coming in the following iterations. Now imagine, <a href='https://www.youtube.com/watch?v=zsTRxXvQY0s'>what happens</a>, when they — the very first time — <i>really</i> start using the system, only a year after the project started.</p><p>So, what do you think? Is the customer <i>wrong</i> when acting like that? I don't think so. Well, at least their position makes sense. They didn't come to you for Scrum master certification. They are shopping. Shopping for software.</p><p>Now, imagine you're buying a car… Yeah-yeah, I'm going to throw a car metaphor at you. I discourage it myself normally: it doesn't work for software. But that's how customers think. So, buying a car, you're asking a dealer how much a family car would cost, with "standard" features. And instead of telling you, he says:</p><p>— I have a better idea: let's <i>build</i> a car together. We'll do it iteratively. So, say, in 2 weeks you come and test how the 4 wheels roll in standalone mode.</p><p>What would you do then? I bet you'll go to a dealer who'll just show you a freaking price tag. You can always find more than enough of them. And! We've been feeding this beast ourselves — by accepting the long-term fixed price projects.</p><p>Isn't that a little depressing? OK, enough. Let's finish on a positive note. There are parts of Agile that work great in customer projects. Test-driven development, collective code ownership, continuous integration, (occasional) pair programming… Well, basically everything that doesn't involve a manager. Those are the essential professional programmer disciplines today. And you're very… brave if you aren't following them; especially in year-long fixed price projects, which aren't going anyway any time soon.</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2010-11-23-FOSE-2010-notes.html</id>
+    <link href="https://ikr.li/blog/2010-11-23-FOSE-2010-notes.html"/>
+    <title>Pearls of the FOSE 2010, from the back of an envelope</title>
+    <updated>2010-11-23T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>I've been to <a href='http://fose.ethz.ch/'>The Future of Software Engineering Symposium</a> at ETH Zurich. It was amazing to meet in person some of the true legends of our field. Here's a random set of entertaining notes I took.</p><h1 id="e._gamma_re_c._alexander%27s_books_on_pattern_language%3A">E. Gamma re C. Alexander's books on pattern language:</h1><p>— Those are the books we'd like to have on our shelves. Some of us even read them. I didn't.</p><h1 id="d._parnas%3A">D. Parnas:</h1><p>— “Requirements” is not a list. It's a predicate.</p><p>— …But the open source code I looked at is crap! (in response to Gamma's offer to learn good design from OSS projects)</p><p>— Did the people who spell well learn it from a spell checker? (re a verification tool driving the coding)</p><h1 id="m._broy%3A">M. Broy:</h1><p>— Software engineering is in a much better shape than one would think after attending this conference.</p><h1 id="n._wirth%3A">N. Wirth:</h1><p>— Everyone get the language they deserve.</p><h1 id="a._zeller%3A">A. Zeller:</h1><p>— If you need a lot of versatile bug samples for your static analysis, simply take AspectJ.</p><p>— How do we solve anything fundamental in software engineering now? Everyone takes his tool of choice, like a hammer, and we together beat the problem until it's smashed.</p><h1 id="b._meyer%3A">B. Meyer:</h1><p>— JUnit isn't an automated testing, it's just an automated tests running.</p><h1 id="p._cousot%3A">P. Cousot:</h1><p>— Programmers live in a virtual world, without responsibility.</p><h1 id="y._gurevich%3A">Y. Gurevich:</h1><p>— The future isn’t what it used to be.</p><p>— For a breakthrough in software engineering we need something like what quantum physics is for physics; something where our intuition is of no value.</p><p>— Everyone keeps checking if his program is correct, while the answer is obvious: it isn't.</p><h1 id="p.s.">P.S.</h1><p>Such a fanboy :)</p><p><img src="assets/Parnas-signature.jpg" alt="D. Parnas has signed his epic paper for me" /></p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2010-11-01-opinion-on-frameworks.html</id>
+    <link href="https://ikr.li/blog/2010-11-01-opinion-on-frameworks.html"/>
+    <title>My humbly strong opinion on frameworks</title>
+    <updated>2010-11-01T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>I'm not really a fan of general purpose heavy weight software frameworks like Ruby on Rails. Usually you get fast bootstrap, but — because of insufficient knowledge of how things work inside (aka magic) — you inevitably end up struggling with the framework instead of leveraging it. It may take a few years until you can fluently use the tool. And then it becomes an investment you're reluctant to give up. Actually, you loose your freedom, and obediently accept the "framework X programmer" label attached to you. Which in construction business would sound like “a hammer specialist”.</p><p>Also, with all the deep knowledge you finally have acquired, you start feeling the boundaries: you notice you're shoehorning your solution into something not quite appropriate. And then, all those new shiny Sinatra-s, Lift-s, and node.js-es come. And you find out that one of the new fab toys solves your current application's main problem just “by definition”. But… you've already committed to the framework X, and, until the pain gets utterly intolerable, you won't switch.  Ultimately, the story repeats with a framework Y then.</p><p>So, is there a better alternative? May be. An application-specific DSL-ish approach looks very promising. That's when you build and evolve a kind of internal domain specific language, tailored exactly to your application. I've shown an example <a href='http://gist.github.com/658387'>earlier today. That's how</a> I wish I could work with persistent objects and their HTML forms in my current Web app.  However, it's hard to judge the example without the application context. Abstractly, it just feels like RoR. But the whole point here is that you don't try to be in any way generic. Your “DSL” is minimal, and supports only what the application needs. All the dates displayed in the GUI have the predefined format, a known JS date picker widget is used; page element styles, menus, and navigation are known and fixed; and so on. No scaffolding, it's all productive right away.</p><p>Basically, to achieve that DSL-ish effect, you DRY your app like crazy. Let you laziness drive you: be impatient of <i>any</i> repetition in coding.</p><p>Of course, that doesn't mean you must start each new project with a clean slate. You'll be able to adapt a lot of past code, and, if you're lucky, or doing the same stuff all the time, even to extract some rather generic components. But, if you're an application developer, please don't try to build “a framework” of your own. Most likely it'll suck.</p>]]></content>
+  </entry>
+  <entry>
+    <id>https://ikr.li/blog/2010-08-04-quantum-leap-2-tdd.html</id>
+    <link href="https://ikr.li/blog/2010-08-04-quantum-leap-2-tdd.html"/>
+    <title>Quantum leap No. 2, or why Test-driven Development will solve world hunger</title>
+    <updated>2010-08-04T23:59:59+00:00</updated>
+    <content type="html"><![CDATA[<p>Before I was 11 I didn't even care if computers exist. Then, one day I randomly stumbled upon a book about BASIC, the programming language.  <i>And then it began…</i> I was totally blown away by the idea that I could create my own worlds in code. I was eager to build smart, beautiful things, which are able to make their own decisions, and be… alive, sort of.</p><p>For several years it was a constant creativity bliss: all those small programs and games I made and never really finished — because new shiny ideas appeared faster than I could code.</p><p>And then I've hit the first brick wall. When a body of code grew big enough it started to become unmanageable. I've been spending long hours debugging and guessing what could had been wrong, and drove myself many times into complete despair. I was close to convincing myself that <i>I simply can't program</i>.</p><p>And exactly when I was in my professional dire straits, I discovered <a href='http://www.amazon.com/Object-Oriented-Analysis-Design-Applications-3rd/dp/020189551X'>another book</a>. And, a few months later, <a href='http://www.amazon.com/Design-Patterns-Elements-Reusable-Object-Oriented/dp/0201633612'>yet another one</a>.</p><p>That was my quantum leap No.1. The object-oriented programming. I've learned to build <i>really</i> sophisticated shit. I mean <strong>really</strong>.  Usually, for a feature I did a few days of detailed up-front OOD; played all those object interaction scenarios in my mind; and then writing the code was pure formality. I made it compile, and then… it just worked! With unlimited undo/redo support, my own object-relational mapping, C++ private class inheritance, Visitors, Builders, Chains of Responsibilities, and many other “cool” things that made me feel smarter than I am.</p><p>That worked for quite a while. I mean it could last considerably longer before I found myself in the same tar pit of debugging & guessing. However, something else emerged: people who were inheriting my code complained it's too complex, and, well… too object-oriented.  And I thought “C'mon! Give me a break! Too OO? What does that even mean⁈”, and sometimes even ”OMG, our industry is full of incompetent amateurs!”</p><p>But then I gave it a second thought. Indeed, my heavily pattern-ized and tangled code with tons of polymorphic calls is hard to follow.  Then, still, it may take longer, but in the long run, I end up with a messy code base anyway.</p><p>“I was looking for an answer. It's the question that drives us, Neo.  It's the question that brought you here. You know the question, just as I did…”</p><p>— <i>Must it really be that freaking complex?</i></p><p>…And the answer found me.</p><p>— <i>No dude, it must not. Here's the trick: to keep it simple, you're not allowed to write more production code than it's necessary to satisfy a minimal failing test. Sounds crazy, but just let it go. Free your mind.</i></p><p>Oh, I did write unit tests before. Well, I <i>thought</i> they are <i>unit</i>-tests. But I had no idea that writing a test <i>first</i> makes such a humongous difference. Here's why.</p><ul><li>Even the worst programmer in the world, like me, can actually program. Test/code loop is verytight, and if you make a mistake, you catch it immediately. You can almost forget aboutdebugging. Anything that's broken was written not more than a couple of minutes ago.</li><li>You are no longer afraid of change. If the tests run, you're fine.  And if they don't, you know<i>exactly</i> where the conflict is. You “don't think you are, you <i>know</i> you are”.</li><li>TDD makes the OOP really kick in. You feel the pain from violating the Law of Demeter, or from apublic static function <i>immediately</i>, and not half a year later, trying to make a change underpressure of a big bang deadline. You know all your dependencies; the code becomes modular andflexible.</li><li>You get the best possible and 100% up-to-date documentation of your production code — the tests.</li><li>Tests-first make over-engineering much harder. They keep you goal-oriented and focused on what'struly important.</li></ul><p>So, that's how I've made my latest level-up. I swear by TDD; and I full-heartedly agree with Uncle Bob Martin: today, as a professional, you have no excuse not to follow this practice.</p>]]></content>
+  </entry>
+</feed>

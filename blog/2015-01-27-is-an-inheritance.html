@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Inheritance vs. is-a</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="application/atom+xml" rel="alternate" href="atom.xml" title="Inheritance vs. is-a">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/components/prism-clojure.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism.min.css">
+
+
+
+    <!-- Social sharing (Facebook, Twitter, LinkedIn, etc.) -->
+    <meta name="title" content="Inheritance vs. is-a">
+    <meta name="twitter:title" content="Inheritance vs. is-a">
+    <meta property="og:title" content="Inheritance vs. is-a">
+    <meta property="og:type" content="website">
+
+
+    <meta name="twitter:url" content="https://ikr.li/blog/2015-01-27-is-an-inheritance.html">
+    <meta property="og:url" content="https://ikr.li/blog/2015-01-27-is-an-inheritance.html">
+
+
+    <meta name="twitter:card" content="summary">
+
+
+
+  </head>
+  <body>
+
+    <div class="site-header">
+      <div class="wrapper">
+        <div class="site-nav">
+          <a class="page-link" href="archive.html">Archive</a>
+          <a class="page-link" href="tags/index.html">Tags</a>
+          <a class="page-link" href="https://github.com/ikr/ikr.li-blog/issues">Discuss</a>
+	  <a class="page-link" href="atom.xml">
+            Feed
+          </a>
+	  
+	  
+	  <a class="page-link" href="https://ikr.li/">About</a>
+	  
+        </div>
+        <div>
+          <h1 class="site-title">
+            <a class="page-link" href="index.html">ikr / blog</a>
+          </h1>
+	  <p>Me, exploring software engineering and the world in general.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrapper">
+
+      <h1>
+  
+  Inheritance vs. is-a
+  
+</h1>
+<p>I was arguing with a book today. It's more like <i>the</i> book, actually. If a professional programmer would choose just one book to read about their craft, it would probably be Steve McConnel's <a href='http://cc2e.com/'>Code Complete</a>. So, in the section about the class design the author quotes and endorses himself an advice of a peer of his, yet another software guru &ndash; <a href='http://www.aristeia.com/books.html'>Scott Meyers</a>. Here's the quote:</p><p><i>The single most important rule in object-oriented programming with C++ is this: public inheritance means "is a." Commit this rule to memory.</i></p><p>"Whoa, really? That categorically?" &ndash; told I to <i>the book,</i> being pretty sure it's more nuanced than just that straight rule. Well, who am I to argue with Mr. Meyers and Mr. McConnel? I'm simply embarrassing myself writing this right now, am I not? Please bare with me for a moment before rushing to the conclusion. The two gurus <i>are</i> right of course, but there's a catch: the <i>is-a</i> they're talking about isn't the is-a you're used to in the real world. Here's a great example I heard from <a href='http://blog.cleancoder.com/'>Robert C. Martin</a> on <a href='http://www.hanselman.com/blog/HanselminutesPodcast145SOLIDPrinciplesWithUncleBobRobertCMartin.aspx'>Hanselminutes</a>, &ndash; I'll take the main idea and sugar-coat it a bit. Let it be Plato casually addressing Meletus.</p><p>&ndash; Come hither, Meletus, and let me ask a question of you. Is square a rectangle?</p><p>&ndash; Of course it is! What kind of question is that?</p><p>&ndash; Good. Let's imagine us implementing a <code>Rectangle</code> class, having methods <code>setHeight&#40;float h&#41;</code> and    <code>setWidth&#40;float w&#41;</code>, inflating or deflating the figure, keeping its center's coordinates    fixed. Say, it's a vector graphics program... You tell a rectangle to change the height or width,    and it triggers a redraw.</p><p><img src="assets/rect-inflate-deflate.png" alt="Rectangle inflate and deflate" /></p><p>&ndash; Sure. But I'd advise you to indicate the units of measurement in such an interface.</p><p>&ndash; Oh, totally. However, that's irrelevant to what I'm trying to convey. Suppose now we also need a    class for a <code>Square</code>. Is <code>Square</code> a <code>Rectangle</code>?</p><p>&ndash; You've already asked.</p><p>&ndash; Indeed. Should I code it as <code>class Square extends Rectangle</code> then?</p><p>&ndash; Yes...</p><p>&ndash; What will be special about the <code>Square</code>'s implementation of <code>setHeight</code> and <code>setWidth</code>?</p><p>&ndash; Well, a <code>Square</code> has to remain a square. Therefore, adjusting width/height will also result in    adjusting height/width.</p><p>&ndash; Precisely! Now imagine we have a raster viewport over the plane of figures, that gets rendered on    a computer display. It subscribes to the figures' geometry changes, and decides whether there's a    need to recalcualte/redraw the raster. Then, at some point it has the following configuration.</p><p><img src="assets/viewport-and-square.png" alt="Viewport and a square" /></p><p>&ndash; Cool drawing Plato!</p><p>&ndash; Thanks. Now, the green hatched square, which is so close to the viewport's border, receives a    command to increase its width. The viewport has been designed by an experienced OOP practitioner,    and, of course, it works with <code>Rectangles</code> (<code>Squares</code> included) polymorphically. It thinks:    "Alright, the width grew, but there's no vertical overlap with the viewport area, I can safely    ignore that change!" TADA! A bug!</p><p>&ndash; But... but...</p><p>&ndash; So, is <code>Square</code> a <code>Rectangle</code>?</p><p>&ndash; #$$%<sup>&*~@-!!!</sup></p><p>Where exactly did it go wrong? How could Plato trick Meletus? Let us reiterate. A square is definitely a rectangle, no doubt about that. But is <code>Square</code> a <code>Rectangle</code>, having the public interface methods <code>setHeight</code> and <code>setWidth</code> described above? Hell no! There's a very special meaning of is-a for the object classes' inheritance, and it's defined by the <a href='https://en.wikipedia.org/wiki/Liskov_substitution_principle'>Liskov Substitution Principle</a>: an instance of a subclass must be usable in any context where an instance of the superclass is used, and there must be no semantic incompatibilities. Clearly, the syntactic adherence to the same public interface is not enough to assure the is-a relationship in code. <code>Square</code> broke the public interface semantics contract of <code>Rectangle</code>, and therefore, <code>Square</code> is-not-a <code>Rectangle</code> here.</p>
+
+<p><i>Published: 2015-01-27</i></p>
+
+<p>
+  <i>
+  Tagged:
+  
+  <span class="tag">
+    <a href="tags/design.html">design</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/cc2e.html">cc2e</a>
+  </span>
+  
+  <span class="tag">
+    <a href="tags/oop.html">oop</a>
+  </span>
+  
+  </i>
+</p>
+
+
+
+      
+      <div style="margin-bottom: 20px; float: right;">
+        <a class="page-link" href="archive.html">Archive</a>
+      </div>
+      
+    </div>
+  </body>
+</html>

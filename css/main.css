@@ -47,3 +47,10 @@ body {
 a {
     color: rgb(97, 206, 60);
 }
+
+.hidden-link {
+    color: white;
+    text-decoration: none;
+    border-bottom: 1px dotted;
+    border-bottom-color: rgb(128, 128, 128);
+}
